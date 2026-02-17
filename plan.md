@@ -2,7 +2,7 @@
 
 ---
 
-# Custom Seven Split (CSS) 개발 기획서 v2.1
+# Custom Seven Split (CSS) 개발 기획서 v3
 
 ---
 
@@ -89,7 +89,7 @@
 
 ---
 
-## 4. 데이터베이스 스키마 (ERD v2.1)
+## 4. 데이터베이스 스키마 (ERD v3)
 
 기존 기획서 대비 **설정(Config) / 상태(State) / 기록(History)**을 명확히 분리하여 자산 흐름 추적을 강화함.
 
@@ -206,7 +206,7 @@ Custom-Seven-Split/
 │   │   │   ├── endpoints/          # 라우터 (auth, strategy, trade, dashboard)
 │   │   ├── core/                   # 설정 (config, exceptions)
 │   │   ├── db/                     # DB 연결 (session)
-│   │   ├── models/                 # SQLAlchemy 모델 (schema v2.1 반영)
+│   │   ├── models/                 # SQLAlchemy 모델 (schema v3 반영)
 │   │   ├── schemas/                # Pydantic DTO
 │   │   ├── services/
 │   │   │   ├── kis_client.py       # KIS API 통신
@@ -238,7 +238,7 @@ Custom-Seven-Split/
 
 ### Phase 1: 기본 환경 및 데이터 구조 (D+1 ~ D+3)
 1.  Codespace 환경 구성 (Python, React).
-2.  **ERD v2.1** 기반 SQLAlchemy 모델링 및 마이그레이션.
+2.  **ERD v3** 기반 SQLAlchemy 모델링 및 마이그레이션.
 3.  KIS API 연동 (토큰 발급, 현재가 조회).
 
 ### Phase 2: 핵심 로직 구현 (D+4 ~ D+7)
