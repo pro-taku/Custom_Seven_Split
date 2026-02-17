@@ -1,0 +1,23 @@
+{
+  "name": "Custom Seven Split Dev Environment",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "alexcvzz.vscode-sqlite",
+        "EditorConfig.EditorConfig",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+
+  // Forward the ports for the backend and frontend
+  "forwardPorts": [8000, 5173],
+
+  // Install python dependencies and Gemini CLI
+  "postCreateCommand": "pip install -r backend/requirements.txt && npm install -g @google/gemini-cli"
+}
