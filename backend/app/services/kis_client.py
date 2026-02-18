@@ -1,8 +1,10 @@
 import httpx
-import asyncio
 from typing import Optional, Dict, Any
 import datetime
 
+"""
+지금 얘가 제일 중요한데, 사용법을 아직 못 익혔음
+"""
 class KISClient:
     def __init__(self, app_key: str, app_secret: str, account_num: str, is_virtual: bool = True):
         self.app_key = app_key
@@ -13,6 +15,7 @@ class KISClient:
         self.access_token: Optional[str] = None
         self.token_expiry: Optional[datetime.datetime] = None
 
+    # API를 쓰기 위해 token 가져오기
     async def get_access_token(self) -> str:
         """
         Issuance of Access Token.
@@ -20,6 +23,7 @@ class KISClient:
         if self.access_token and self.token_expiry and self.token_expiry > datetime.datetime.now():
             return self.access_token
 
+        # 여기 나중에 수정할 것
         url = f"{self.base_url}/oauth2/tokenP"
         payload = {
             "grant_type": "client_credentials",
@@ -40,6 +44,7 @@ class KISClient:
             else:
                 raise Exception(f"Failed to get access token: {data}")
 
+    # 현재가 불러오기
     async def get_current_price(self, stock_code: str) -> int:
         """
         Get current price of a stock.
@@ -67,6 +72,7 @@ class KISClient:
             else:
                 raise Exception(f"Failed to get current price for {stock_code}: {data}")
 
+    # 주문 요청
     async def place_order(self, stock_code: str, quantity: int, price: int, side: str = "BUY") -> Dict[str, Any]:
         """
         Place a buy or sell order.

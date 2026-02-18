@@ -38,29 +38,30 @@ class TradeEngine:
             except Exception as e:
                 logger.error(f"Error processing strategy for {strategy.stock_code}: {e}")
 
+    # 전략에 따라 거래 처리
     async def process_strategy(self, strategy: base.StockStrategy):
         current_price = await self.kis_client.get_current_price(strategy.stock_code)
         logger.info(f"Processing {strategy.stock_name} ({strategy.stock_code}) - Current Price: {current_price}")
 
         # 1. Check for Sell opportunities (Target Return reached)
-        balances = self.db.query(base.VirtualBalance).filter(
-            base.VirtualBalance.stock_code == strategy.stock_code
+        accounts = self.db.query(base.VirtualAccount).filter(
+            base.VirtualAccount.stock_code == strategy.stock_code
         ).all()
 
-        for balance in balances:
-            target_price = balance.avg_price * (1 + strategy.target_return)
+        for account in accounts:
+            target_price = account.avg_price * (1 + strategy.target_return)
             if current_price >= target_price:
-                await self.execute_sell(strategy, balance, current_price)
+                await self.execute_sell(strategy, account, current_price)
 
         # 2. Check for Buy opportunities (Gap Ratio reached)
         # Find the highest split number currently held
         max_split_held = 0
         last_buy_price = 0
         
-        if balances:
-            highest_split_balance = max(balances, key=lambda x: x.split_number)
-            max_split_held = highest_split_balance.split_number
-            last_buy_price = highest_split_balance.avg_price
+        if accounts:
+            highest_split_account = max(accounts, key=lambda x: x.split_number)
+            max_split_held = highest_split_account.split_number
+            last_buy_price = highest_split_account.avg_price
         
         # If we can still split
         if max_split_held < strategy.max_split:
@@ -80,6 +81,7 @@ class TradeEngine:
             if should_buy:
                 await self.execute_buy(strategy, next_split, current_price)
 
+    # 매수 실시
     async def execute_buy(self, strategy: base.StockStrategy, split_number: int, price: int):
         quantity = strategy.invest_per_split // price
         if quantity == 0:
@@ -92,13 +94,13 @@ class TradeEngine:
         # order_result = await self.kis_client.place_order(strategy.stock_code, quantity, price, "BUY")
         # For now, let's assume it's successful and update DB
         
-        new_balance = base.VirtualBalance(
+        new_account = base.VirtualAccount(
             stock_code=strategy.stock_code,
             split_number=split_number,
             quantity=quantity,
             avg_price=price
         )
-        self.db.add(new_balance)
+        self.db.add(new_account)
         
         history = base.TradeHistory(
             stock_code=strategy.stock_code,
@@ -111,25 +113,26 @@ class TradeEngine:
         
         self.db.commit()
 
-    async def execute_sell(self, strategy: base.StockStrategy, balance: base.VirtualBalance, price: int):
-        logger.info(f"Executing SELL for {strategy.stock_code} split {balance.split_number} at {price}")
+    # 매도 실시
+    async def execute_sell(self, strategy: base.StockStrategy, account: base.VirtualAccount, price: int):
+        logger.info(f"Executing SELL for {strategy.stock_code} split {account.split_number} at {price}")
         
         # In real/virtual trading:
-        # order_result = await self.kis_client.place_order(strategy.stock_code, balance.quantity, price, "SELL")
+        # order_result = await self.kis_client.place_order(strategy.stock_code, account.quantity, price, "SELL")
         
-        realized_profit = (price - balance.avg_price) * balance.quantity
+        realized_profit = (price - account.avg_price) * account.quantity
         
         history = base.TradeHistory(
             stock_code=strategy.stock_code,
             trade_type="SELL",
-            split_number=balance.split_number,
+            split_number=account.split_number,
             price=price,
-            quantity=balance.quantity,
+            quantity=account.quantity,
             realized_profit=realized_profit
         )
         self.db.add(history)
         
         # Delete from virtual balance
-        self.db.delete(balance)
+        self.db.delete(account)
         
         self.db.commit()

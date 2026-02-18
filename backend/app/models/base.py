@@ -35,12 +35,12 @@ class StockStrategy(Base):
     invest_per_split = Column(Integer, nullable=False)
     max_split = Column(Integer, default=7)
 
-    balances = relationship("VirtualBalance", back_populates="strategy")
+    balances = relationship("VirtualAccount", back_populates="strategy")
     histories = relationship("TradeHistory", back_populates="strategy")
 
 
-class VirtualBalance(Base):
-    __tablename__ = "virtual_balance"
+class VirtualAccount(Base):
+    __tablename__ = "virtual_account"
     id = Column(Integer, primary_key=True, index=True)
     stock_code = Column(String, ForeignKey("stock_strategy.stock_code"), nullable=False)
     split_number = Column(Integer, nullable=False)

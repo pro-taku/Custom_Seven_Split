@@ -5,10 +5,10 @@ from app.models import base
 from app.api.endpoints import strategy, asset, settings
 from app.services.scheduler import setup_scheduler
 
-# This will create the database file and tables if they don't exist
-# when the application module is first imported.
+# 앱 모듈이 처음 import 됐을 때, DB와 테이블이 없으면 새로 만든다.
 base.Base.metadata.create_all(bind=engine)
 
+# 앱의 생명주기에 따라 실행할 함수 (비동기)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Setup scheduler
