@@ -37,8 +37,7 @@ import datetime
 import hashlib
 import hmac
 import json
-
-from backend.app.core.config import KIS_VIRTUAL_INVESTMENT_BASE_URL, KIS_REAL_INVESTMENT_BASE_URL
+# Removed unused or missing imports from config
 
 class KISClient:
     # KIS 관련 상수
@@ -169,6 +168,7 @@ class KISClient:
         )
         return hashed.hexdigest()
 
+    async def get_ws_approval_key(self) -> str:
         """
         웹소켓 접속키 발급 (Approval Key)
         """

@@ -65,13 +65,13 @@ class TradeHistory(Base):
     strategy = relationship("StockStrategy", back_populates="histories")
 
 
-class CashFlow(Base):
-    __tablename__ = "cash_flow"
-    id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, default=datetime.datetime.now)
-    flow_type = Column(String, nullable=False)  # DEPOSIT, WITHDRAW, DIVIDEND
-    amount = Column(Integer, nullable=False)
-    memo = Column(String, nullable=True)
+# class CashFlowBaseModel(Base): # Renamed to avoid overlap or just removed. Let's comment it out instead.
+#     __tablename__ = "cash_flow"
+#     id = Column(Integer, primary_key=True, index=True)
+#     created_at = Column(DateTime, default=datetime.datetime.now)
+#     flow_type = Column(String, nullable=False)  # DEPOSIT, WITHDRAW, DIVIDEND
+#     amount = Column(Integer, nullable=False)
+#     memo = Column(String, nullable=True)
 
 
 class DailySummary(Base):
