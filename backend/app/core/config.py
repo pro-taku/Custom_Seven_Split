@@ -4,6 +4,3 @@ import os
 # 이건 backend 폴더에서 db 파일의 위치를 뜻한다
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///../sevensplit.db")
 
-# Http 통신을 도와줄 헬퍼 클래스
-class HTTPHelper():
-    pass

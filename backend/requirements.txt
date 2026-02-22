@@ -4,3 +4,4 @@ sqlalchemy
 alembic
 httpx
 apscheduler
+websockets
