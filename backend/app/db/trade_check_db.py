@@ -1,15 +1,15 @@
-
 import datetime as dt
-from typing import List, Optional
-from sqlalchemy import Column, Integer, String, DateTime
+
+from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.orm import Session
-from ..db.session import Base
+
+from app.db.session import Base
 
 
 class TradeCheckDB(Base):
     __tablename__ = "trade_check_db"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    trade_id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, default=dt.datetime.now)
     stock_code = Column(String)
     type = Column(String)  # BUY, SELL
@@ -18,11 +18,25 @@ class TradeCheckDB(Base):
     status = Column(Integer)  # 0=대기중, 1=체결, 2=취소
 
     def __repr__(self):
-        return f"<TradeCheckDB(id={self.id}, stock_code='{self.stock_code}', type='{self.type}')>"
+        return f"<TradeCheckDB(id={self.trade_id}, stock_code='{self.stock_code}', type='{self.type}')>"
 
     @classmethod
-    def create(cls, db: Session, stock_code: str, trade_type: str, price: int, count: int, status: int):
-        new_trade = cls(stock_code=stock_code, type=trade_type, price=price, count=count, status=status)
+    def create(
+        cls,
+        db: Session,
+        stock_code: str,
+        trade_type: str,
+        price: int,
+        count: int,
+        status: int,
+    ):
+        new_trade = cls(
+            stock_code=stock_code,
+            type=trade_type,
+            price=price,
+            count=count,
+            status=status,
+        )
         db.add(new_trade)
         db.commit()
         db.refresh(new_trade)
@@ -30,15 +44,15 @@ class TradeCheckDB(Base):
 
     @classmethod
     def get(cls, db: Session, trade_id: int):
-        return db.query(cls).filter(cls.id == trade_id).first()
-    
+        return db.query(cls).filter(cls.trade_id == trade_id).first()
+
     @classmethod
-    def get_all(cls, db: Session) -> List['TradeCheckDB']:
+    def get_all(cls, db: Session) -> list["TradeCheckDB"]:
         return db.query(cls).all()
 
     @classmethod
     def update(cls, db: Session, trade_id: int, **kwargs):
-        trade_record = db.query(cls).filter(cls.id == trade_id).first()
+        trade_record = db.query(cls).filter(cls.trade_id == trade_id).first()
         if trade_record:
             for key, value in kwargs.items():
                 setattr(trade_record, key, value)
@@ -49,7 +63,7 @@ class TradeCheckDB(Base):
 
     @classmethod
     def delete(cls, db: Session, trade_id: int):
-        trade_record = db.query(cls).filter(cls.id == trade_id).first()
+        trade_record = db.query(cls).filter(cls.trade_id == trade_id).first()
         if trade_record:
             db.delete(trade_record)
             db.commit()
@@ -57,9 +71,18 @@ class TradeCheckDB(Base):
         return False
 
     @classmethod
-    def select_in_period(cls, db: Session, start_date: dt.datetime, end_date: dt.datetime) -> List['TradeCheckDB']:
-        return db.query(cls).filter(cls.created_at >= start_date, cls.created_at <= end_date).all()
+    def select_in_period(
+        cls,
+        db: Session,
+        start_date: dt.datetime,
+        end_date: dt.datetime,
+    ) -> list["TradeCheckDB"]:
+        return (
+            db.query(cls)
+            .filter(cls.created_at >= start_date, cls.created_at <= end_date)
+            .all()
+        )
 
     @classmethod
-    def select_by_stock_code(cls, db: Session, stock_code: str) -> List['TradeCheckDB']:
+    def select_by_stock_code(cls, db: Session, stock_code: str) -> list["TradeCheckDB"]:
         return db.query(cls).filter(cls.stock_code == stock_code).all()

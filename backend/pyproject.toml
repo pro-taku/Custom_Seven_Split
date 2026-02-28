@@ -1,0 +1,17 @@
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = ["venv", ".git", "__pycache__", "node_modules", ".vscode", "temp", "tmp", "dist", "build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "C4", "COM", "CPY", "ERA", "FA", "ISC", "ICN", "PT", "Q", "RSE", "RET", "SIM", "TID", "TCH", "INT", "ARG", "TD", "FIX", "PD", "PGH"]
+ignore = ["D", "ANN", "PTH", "DTZ", "PLR", "E501", "TC002", "PIE796", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # Allow unused imports in __init__.py
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+docstring-code-format = true

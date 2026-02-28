@@ -1,8 +1,7 @@
-
-from typing import List, Optional
 from sqlalchemy import Column, String
 from sqlalchemy.orm import Session
-from ..db.session import Base
+
+from app.db.session import Base
 
 
 class StockCodeNameDB(Base):
@@ -27,12 +26,12 @@ class StockCodeNameDB(Base):
         return db.query(cls).filter(cls.stock_code == stock_code).first()
 
     @classmethod
-    def get_stock_name(cls, db: Session, stock_code: str) -> Optional[str]:
+    def get_stock_name(cls, db: Session, stock_code: str) -> str | None:
         entry = db.query(cls).filter(cls.stock_code == stock_code).first()
         return entry.stock_name if entry else None
-    
+
     @classmethod
-    def get_all(cls, db: Session) -> List['StockCodeNameDB']:
+    def get_all(cls, db: Session) -> list["StockCodeNameDB"]:
         return db.query(cls).all()
 
     @classmethod

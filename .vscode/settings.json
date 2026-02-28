@@ -1,4 +1,12 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:system",
-    "python-envs.pythonProjects": []
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff", // Python 파일의 기본 포매터로 Ruff 설정
+    "editor.formatOnSave": true, // 저장 시 자동 포맷 활성화
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit", // 저장 시 Ruff의 자동 수정 기능 활성화
+      "source.organizeImports.ruff": "explicit" // 저장 시 Ruff를 사용한 임포트 정리 활성화
+    }
+  },
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "python-envs.defaultPackageManager": "ms-python.python:pip"
 }

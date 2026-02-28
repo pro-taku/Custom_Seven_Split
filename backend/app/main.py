@@ -1,78 +1,90 @@
-# from fastapi import FastAPI, Depends
-# from contextlib import asynccontextmanager
-# from sqlalchemy.orm import Session
-# from app.db.session import engine, get_db
-# from app.models import base
-# from app.api.endpoints import strategy, asset, settings
-# from app.services.scheduler import setup_scheduler
-# from app.db.asset_history_db import AssetHistoryDB # Import AssetHistoryDB
-
-import sys
-import os
+import argparse
+import asyncio
 import logging
+import os
+import sys
+from contextlib import asynccontextmanager
 
-# 현재 파일(main.py)의 상위 상위 디렉토리(backend)를 sys.path에 추가하여 'app' 모듈을 찾을 수 있게 함
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure the 'backend' directory is in the Python path.
+# This makes 'app' discoverable as a subpackage of 'backend'.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.join(current_dir, os.pardir)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-from app.db.session import get_db, engine, Base
-from app.db.asset_history_db import AssetHistoryDB
+import uvicorn
+from fastapi import APIRouter, FastAPI
+
+# Now, import modules using their full path from the 'backend' root
+from app.api import api_router
+from app.db.session import Base, engine
+from app.services.ws_service import ws_service_instance
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
-# 앱 모듈이 처음 import 됐을 때, DB와 테이블이 없으면 새로 만든다.
-Base.metadata.create_all(bind=engine)
-
-# # 앱의 생명주기에 따라 실행할 함수 (비동기)
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # Startup: Setup scheduler
-#     scheduler = setup_scheduler()
-#     yield
-#     # Shutdown: Stop scheduler
-#     scheduler.shutdown()
-
-app = FastAPI(
-    # title="Custom Seven Split API",
-    # description="API for automating the Seven Split investment strategy.",
-    # version="0.1.0",
-    # lifespan=lifespan
+# Parse command-line arguments
+parser = argparse.ArgumentParser(
+    description="Run the Custom Seven Split FastAPI server.",
 )
+parser.add_argument(
+    "--env",
+    type=str,
+    default="V",
+    choices=["V", "R"],
+    help="Environment for KIS API (V: Virtual, R: Real). Defaults to Virtual.",
+)
+args = parser.parse_args()
 
-# # Include Routers
-# app.include_router(strategy.router, prefix="/api/strategy", tags=["Strategy"])
-# app.include_router(asset.router, prefix="/api/asset", tags=["Asset"])
-# app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
+# Global variable to store the environment
+GLOBAL_ENV = args.env
+logger.info(f"Running in KIS environment: {GLOBAL_ENV}")
 
-@app.get("/", tags=["Root"])
-def read_root():
-    """
-    Root endpoint to check if the API is running.
-    """
-    return {"message": "Welcome to the Custom Seven Split API!"}
+# Base API router for "/" endpoints
+root_router = APIRouter()
 
-@app.get("/test-asset-history", tags=["Test"])
-def test_add_asset_history(db: Session = Depends(get_db)):
-    """
-    Test endpoint to add a new row to AssetHistoryDB.
-    """
-    try:
-        AssetHistoryDB.create(
-            db=db,
-            invested_capital=1000000,
-            total_asset_value=1050000,
-            cash_balance=50000,
-            net_cash_flow=0,
-            dividend=0,
-            interest=0,
-            stock_pnl=50000,
-            total_pnl=50000,
-            net_asset_change=50000
-        )
-        a = AssetHistoryDB.get_all(db=db)
-        logger.info(a)
-        return {"message": "AssetHistoryDB record created successfully", "record": a}
-    except Exception as e:
-        db.rollback()
-        return {"message": f"Failed to create AssetHistoryDB record: {e}"}
+
+@root_router.get("/")
+async def root():
+    return {"message": "Welcome to Custom Seven Split API", "environment": GLOBAL_ENV}
+
+
+# Lifespan context for startup and shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup events
+    logger.info("Application startup begins.")
+
+    # 1. Create DB tables if they don't exist
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables checked/created.")
+
+    # 2. Initialize WebSocket service in a background task, passing the environment
+    ws_service_instance.initialize(GLOBAL_ENV)
+    asyncio.create_task(ws_service_instance.start())
+    logger.info("WebSocket service initiated.")
+
+    yield
+
+    # Shutdown events
+    logger.info("Application shutdown begins.")
+    # Stop WebSocket service
+    await ws_service_instance.stop()
+    logger.info("WebSocket service stopped.")
+    logger.info("Application shutdown completed.")
+
+
+# Initialize FastAPI app
+app = FastAPI(lifespan=lifespan)
+
+# Include API routers
+app.include_router(root_router)
+app.include_router(api_router, prefix="/api")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

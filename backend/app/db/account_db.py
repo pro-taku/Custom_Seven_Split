@@ -1,8 +1,7 @@
-
-from typing import List, Optional
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import Session
-from ..db.session import Base
+
+from app.db.session import Base
 
 
 class AccountDB(Base):
@@ -17,8 +16,20 @@ class AccountDB(Base):
         return f"<AccountDB(split_level={self.split_level}, stock_code='{self.stock_code}', price={self.price}, count={self.count})>"
 
     @classmethod
-    def create(cls, db: Session, split_level: int, stock_code: str, price: int, count: int):
-        new_account = cls(split_level=split_level, stock_code=stock_code, price=price, count=count)
+    def create(
+        cls,
+        db: Session,
+        split_level: int,
+        stock_code: str,
+        price: int,
+        count: int,
+    ):
+        new_account = cls(
+            split_level=split_level,
+            stock_code=stock_code,
+            price=price,
+            count=count,
+        )
         db.add(new_account)
         db.commit()
         db.refresh(new_account)
@@ -26,15 +37,30 @@ class AccountDB(Base):
 
     @classmethod
     def get(cls, db: Session, split_level: int, stock_code: str):
-        return db.query(cls).filter(cls.split_level == split_level, cls.stock_code == stock_code).first()
+        return (
+            db.query(cls)
+            .filter(cls.split_level == split_level, cls.stock_code == stock_code)
+            .first()
+        )
 
     @classmethod
-    def get_all(cls, db: Session) -> List['AccountDB']:
+    def get_all(cls, db: Session) -> list["AccountDB"]:
         return db.query(cls).all()
 
     @classmethod
-    def update(cls, db: Session, split_level: int, stock_code: str, new_price: Optional[int] = None, new_count: Optional[int] = None):
-        account = db.query(cls).filter(cls.split_level == split_level, cls.stock_code == stock_code).first()
+    def update(
+        cls,
+        db: Session,
+        split_level: int,
+        stock_code: str,
+        new_price: int | None = None,
+        new_count: int | None = None,
+    ):
+        account = (
+            db.query(cls)
+            .filter(cls.split_level == split_level, cls.stock_code == stock_code)
+            .first()
+        )
         if account:
             if new_price is not None:
                 account.price = new_price
@@ -47,7 +73,11 @@ class AccountDB(Base):
 
     @classmethod
     def delete(cls, db: Session, split_level: int, stock_code: str):
-        account = db.query(cls).filter(cls.split_level == split_level, cls.stock_code == stock_code).first()
+        account = (
+            db.query(cls)
+            .filter(cls.split_level == split_level, cls.stock_code == stock_code)
+            .first()
+        )
         if account:
             db.delete(account)
             db.commit()
@@ -55,5 +85,5 @@ class AccountDB(Base):
         return False
 
     @classmethod
-    def select_virtual_account(cls, db: Session, split_level: int) -> List['AccountDB']:
+    def select_virtual_account(cls, db: Session, split_level: int) -> list["AccountDB"]:
         return db.query(cls).filter(cls.split_level == split_level).all()

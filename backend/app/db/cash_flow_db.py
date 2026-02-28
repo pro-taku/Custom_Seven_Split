@@ -1,9 +1,9 @@
-
 import datetime as dt
-from typing import List, Optional
-from sqlalchemy import Column, Integer, String, DateTime
+
+from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.orm import Session
-from ..db.session import Base
+
+from app.db.session import Base
 
 
 class CashFlow(Base):
@@ -31,7 +31,7 @@ class CashFlow(Base):
         return db.query(cls).filter(cls.id == cash_flow_id).first()
 
     @classmethod
-    def get_all(cls, db: Session) -> List['CashFlow']:
+    def get_all(cls, db: Session) -> list["CashFlow"]:
         return db.query(cls).all()
 
     @classmethod
@@ -55,9 +55,18 @@ class CashFlow(Base):
         return False
 
     @classmethod
-    def select_in_period(cls, db: Session, start_date: dt.datetime, end_date: dt.datetime) -> List['CashFlow']:
-        return db.query(cls).filter(cls.created_at >= start_date, cls.created_at <= end_date).all()
+    def select_in_period(
+        cls,
+        db: Session,
+        start_date: dt.datetime,
+        end_date: dt.datetime,
+    ) -> list["CashFlow"]:
+        return (
+            db.query(cls)
+            .filter(cls.created_at >= start_date, cls.created_at <= end_date)
+            .all()
+        )
 
     @classmethod
-    def select_by_type(cls, db: Session, flow_type: str) -> List['CashFlow']:
+    def select_by_type(cls, db: Session, flow_type: str) -> list["CashFlow"]:
         return db.query(cls).filter(cls.type == flow_type).all()
