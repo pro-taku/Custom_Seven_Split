@@ -73,7 +73,9 @@ class _KISProperty:
             self.app_key = read_data("virtual_app_key")
             self.app_secret = read_data("virtual_app_secret")
             self.account_num = (
-                read_data("virtual_account") if account_num is None else account_num
+                read_data("virtual_account") + "-" + read_data("virtual_prod")
+                if account_num is None
+                else account_num
             )
             self.http_domain = KIS_VIRTUAL_DOMAIN
             self.ws_domain = KIS_VIRTUAL_WS_DOMAIN
@@ -102,7 +104,7 @@ class _KISProperty:
         )
         self.ws_token = read_data("ws_token")
         self.account_prefix = self.account_num[:8]
-        self.account_suffix = self.account_num[8:]
+        self.account_suffix = self.account_num[9:]
         self.TR = TR
 
     def __str__(self):
@@ -131,7 +133,6 @@ class KISClient(_KISProperty):
         response_model: type[KISBaseResponse],
         request_body_model: BaseModel | None = None,
         request_query_model: BaseModel | None = None,
-        is_hash_needed: bool = False,
     ) -> KISBaseResponse:
         url = self.http_domain + api_path
         headers = request_header_model.model_dump(by_alias=True, exclude_none=True)
@@ -148,11 +149,12 @@ class KISClient(_KISProperty):
                 exclude_none=True,
             )
 
-        if is_hash_needed and request_body_model:
-            request_body_str = json.dumps(
-                request_body_model.model_dump(by_alias=True, exclude_none=True),
-            )
-            headers["hashkey"] = self.hashing(request_body_str)
+        # Hashing functionality is currently disabled
+        # if is_hash_needed and request_body_model:
+        #     request_body_str = json.dumps(
+        #         request_body_model.model_dump(by_alias=True, exclude_none=True),
+        #     )
+        #     headers["hashkey"] = self.hashing(request_body_str)
 
         try:
             if method.lower() == "get":
@@ -170,8 +172,11 @@ class KISClient(_KISProperty):
             raise
 
     async def load_auth_token(self) -> OAuth2TokenPResponse:
+        logger.info(
+            f"Current auth_token: {'[REDACTED]' if self.auth_token else 'None'}. Expired time: {self.expired_time}. Current time: {datetime.now()}",
+        )
         if self.auth_token and self.expired_time and self.expired_time > datetime.now():
-            logger.info("Access token is still valid.")
+            logger.info("Access token is still valid. No new token request needed.")
             return OAuth2TokenPResponse(
                 rt_cd="0",
                 msg_cd="KISA0000",
@@ -182,6 +187,7 @@ class KISClient(_KISProperty):
                 token_type=self.token_type,
             )
 
+        logger.info("Access token is expired or not available. Requesting a new one...")
         api_url = "/oauth2/tokenP"
         request_body = OAuth2TokenPRequest(
             appkey=self.app_key,
@@ -195,26 +201,30 @@ class KISClient(_KISProperty):
         }
 
         try:
+            logger.debug(f"Requesting new auth token to {self.http_domain + api_url}")
+            logger.debug(f"Request headers: {headers}")
+            logger.debug(
+                f"Request body: {request_body.model_dump_json(by_alias=True, exclude_none=True)}",
+            )
+
             response_json = await post(
                 url=self.http_domain + api_url,
                 headers=headers,
                 json=request_body.model_dump(by_alias=True, exclude_none=True),
             )
+            logger.debug(f"Auth token response: {response_json}")
             response = OAuth2TokenPResponse.model_validate(response_json)
 
-            if response.rt_cd == "0":
-                self.auth_token = response.access_token
-                self.token_type = response.token_type
-                self.expired_time = response.access_token_token_expired
-                save_data("auth_token", self.auth_token)
-                save_data("token_type", self.token_type)
-                save_data(
-                    "expired_time",
-                    self.expired_time.strftime("%Y-%m-%d %H:%M:%S"),
-                )
-                logger.info("Access token issued and saved successfully.")
-            else:
-                logger.error(f"Failed to issue access token: {response.msg1}")
+            self.auth_token = response.access_token
+            self.token_type = response.token_type
+            self.expired_time = response.access_token_token_expired
+            save_data("auth_token", self.auth_token)
+            save_data("token_type", self.token_type)
+            save_data(
+                "expired_time",
+                self.expired_time.strftime("%Y-%m-%d %H:%M:%S"),
+            )
+            logger.info("Access token issued and saved successfully.")
             return response
         except Exception as e:
             logger.error(f"Error loading auth token: {e}")
@@ -277,13 +287,13 @@ class KISClient(_KISProperty):
             await self.load_auth_token()
 
         tr_id = ""
-        if sll_buy_dvsn_cd == "01":
+        if sll_buy_dvsn_cd == "SELL":
             tr_id = (
                 self.TR.TR_KS_SELL_V.value
                 if self.env == "V"
                 else self.TR.TR_KS_SELL_R.value
             )
-        elif sll_buy_dvsn_cd == "02":
+        elif sll_buy_dvsn_cd == "BUY":
             tr_id = (
                 self.TR.TR_KS_BUY_V.value
                 if self.env == "V"
@@ -291,7 +301,7 @@ class KISClient(_KISProperty):
             )
         else:
             raise ValueError(
-                "Invalid sll_buy_dvsn_cd. Use '01' for sell or '02' for buy.",
+                "Invalid sll_buy_dvsn_cd. Use 'SELL' for sell or 'BUY' for buy.",
             )
 
         request_header = OrderCashRequestHeader(
@@ -309,11 +319,12 @@ class KISClient(_KISProperty):
             ORD_UNPR=str(ord_unpr),
         )
 
-        request_body_json_str = request_body.model_dump_json(
-            by_alias=True,
-            exclude_none=True,
-        )
-        request_header.hashkey = self.hashing(request_body_json_str)
+        # Hashing functionality is currently disabled
+        # request_body_json_str = request_body.model_dump_json(
+        #     by_alias=True,
+        #     exclude_none=True,
+        # )
+        # request_header.hashkey = self.hashing(request_body_json_str)
 
         return await self._send_request(
             method="post",
@@ -369,11 +380,12 @@ class KISClient(_KISProperty):
             QTY_ALL_ORD_YN=qty_all_ord_yn,
         )
 
-        request_body_json_str = request_body.model_dump_json(
-            by_alias=True,
-            exclude_none=True,
-        )
-        request_header.hashkey = self.hashing(request_body_json_str)
+        # Hashing functionality is currently disabled
+        # request_body_json_str = request_body.model_dump_json(
+        #     by_alias=True,
+        #     exclude_none=True,
+        # )
+        # request_header.hashkey = self.hashing(request_body_json_str)
 
         return await self._send_request(
             method="post",
@@ -558,11 +570,12 @@ class KISClient(_KISProperty):
             LMT_UNPR_TYPE_CD=lmt_unpr_type_cd,
         )
 
-        request_body_json_str = request_body.model_dump_json(
-            by_alias=True,
-            exclude_none=True,
-        )
-        request_header.hashkey = self.hashing(request_body_json_str)
+        # Hashing functionality is currently disabled
+        # request_body_json_str = request_body.model_dump_json(
+        #     by_alias=True,
+        #     exclude_none=True,
+        # )
+        # request_header.hashkey = self.hashing(request_body_json_str)
 
         return await self._send_request(
             method="post",
@@ -617,11 +630,12 @@ class KISClient(_KISProperty):
             QTY_ALL_ORD_YN=qty_all_ord_yn,
         )
 
-        request_body_json_str = request_body.model_dump_json(
-            by_alias=True,
-            exclude_none=True,
-        )
-        request_header.hashkey = self.hashing(request_body_json_str)
+        # Hashing functionality is currently disabled
+        # request_body_json_str = request_body.model_dump_json(
+        #     by_alias=True,
+        #     exclude_none=True,
+        # )
+        # request_header.hashkey = self.hashing(request_body_json_str)
 
         return await self._send_request(
             method="post",

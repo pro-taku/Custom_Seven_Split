@@ -2,10 +2,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.lib.kis.client import KISClient
-
 # Global environment variable, set from main.py
-GLOBAL_ENV: str = "V"
+from app.core.config import GLOBAL_ENV
+from app.lib.kis.client import KISClient
 
 
 class StockService:
@@ -94,6 +93,7 @@ class StockService:
         product_code: str = "",
     ) -> dict[str, Any]:
         """KIS로 내가 넣은 주문 조회 (정정/취소 가능 주문 조회 API 사용)"""
+        # 모의투자 미지원
         if self.kis_client:
             return await self.kis_client.inquire_psbl_rvsecncl(
                 order_date,

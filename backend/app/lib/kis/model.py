@@ -55,7 +55,7 @@ class OAuth2TokenPRequest(BaseModel):
     appsecret: str = Field(description="발급받은 APP SECRET")
 
 
-class OAuth2TokenPResponse(KISBaseResponse):
+class OAuth2TokenPResponse(BaseModel):
     access_token: str = Field(description="접근 토큰")
     access_token_token_expired: datetime = Field(
         description="접근 토큰 만료 시간 (YYYY-MM-DD HH:MM:SS)",
@@ -72,7 +72,8 @@ class OAuth2RevokePRequest(BaseModel):
 
 
 class OAuth2RevokePResponse(KISBaseResponse):
-    pass  # No specific output fields beyond common ones
+    # KIS API Revoke response *does* include rt_cd, msg_cd, msg1
+    pass
 
 
 # --- 3. 웹소켓 접속키 발급 (OAuth2 Approval) ---
@@ -82,7 +83,7 @@ class OAuth2ApprovalRequest(BaseModel):
     secretkey: str = Field(description="발급받은 APP SECRET")
 
 
-class OAuth2ApprovalResponse(KISBaseResponse):
+class OAuth2ApprovalResponse(BaseModel):
     approval_key: str = Field(description="웹소켓 접속 키")
     approval_key_token_expired: datetime = Field(
         description="웹소켓 접속 키 만료 시간 (YYYY-MM-DD HH:MM:SS)",
@@ -95,7 +96,11 @@ class OrderCashRequestHeader(KISRequestHeader):
     tr_id: str = Field(
         description="거래 ID (TTTC0012U: 매수, TTTC0011U: 매도, VTTC0012U: 모의매수, VTTC0011U: 모의매도)",
     )
-    hashkey: str = Field(description="HashKey")
+    hashkey: str | None = Field(
+        None,
+        description="HashKey (주식주문 시 필수)",
+        alias="hashkey",
+    )
 
 
 class OrderCashRequestBody(BaseModel):
@@ -106,16 +111,7 @@ class OrderCashRequestBody(BaseModel):
     ORD_QTY: str = Field(description="주문수량")  # KIS API는 수량을 string으로 받음
     ORD_UNPR: str = Field(
         description="주문단가 (지정가 시 필수)",
-    )  # KIS API는 단가를 string으로 받음
-    FX_QTY_RSBL_CODE: str | None = Field(
-        "0",
-        description="정정수량가능여부코드 (0: 가능, 1: 불가능)",
     )
-    TR_ICLD_FX_QTY: str | None = Field("0", description="거래포함정정수량")
-    RSVN_SYS_DV_CD: str | None = Field("00", description="예약체결 시스템 구분코드")
-    NMPR_TR_MDCD: str | None = Field("00", description="비대면 거래매체 코드")
-    EXCC_MEDM_CTNT: str | None = Field(" ", description="실행매체 내용")
-    DLBS_DVSN_CD: str | None = Field("00", description="대량매매 구분코드")
 
 
 class OrderCashResponseOutput(BaseModel):
@@ -133,7 +129,11 @@ class OrderRvsecnclRequestHeader(KISRequestHeader):
     tr_id: str = Field(
         description="거래 ID (TTTC0013U: 실전 정정/취소, VTTC0013U: 모의 정정/취소)",
     )
-    hashkey: str = Field(description="HashKey")
+    hashkey: str | None = Field(
+        None,
+        description="HashKey (주식주문 시 필수)",
+        alias="hashkey",
+    )
 
 
 class OrderRvsecnclRequestBody(BaseModel):
@@ -370,7 +370,11 @@ class InquirePsblOrderResponse(KISBaseResponse):
 # --- 9. 주식예약주문 (Order Resv) ---
 class OrderResvRequestHeader(KISRequestHeader):
     tr_id: str = Field(description="거래 ID (CTSC0008U: 실전)")  # 모의투자 지원 X
-    hashkey: str = Field(description="HashKey")
+    hashkey: str | None = Field(
+        None,
+        description="HashKey (주식주문 시 필수)",
+        alias="hashkey",
+    )
 
 
 class OrderResvRequestBody(BaseModel):
@@ -425,7 +429,11 @@ class OrderResvRvsecnclRequestHeader(KISRequestHeader):
     tr_id: str = Field(
         description="거래 ID (CTSC0013U: 정정, CTSC0009U: 취소)",
     )  # 모의투자 지원 X
-    hashkey: str = Field(description="HashKey")
+    hashkey: str | None = Field(
+        None,
+        description="HashKey (주식주문 시 필수)",
+        alias="hashkey",
+    )
 
 
 class OrderResvRvsecnclRequestBody(BaseModel):
@@ -516,8 +524,8 @@ class InquirePriceRequestQuery(BaseModel):
 
 
 class InquirePriceResponseOutput(BaseModel):
-    iscd_entp_name: str = Field(description="기업명")
-    iscd_cd: str = Field(description="종목코드")
+    iscd_entp_name: str | None = Field(None, description="기업명")
+    iscd_cd: str | None = Field(None, description="종목코드")
     stck_prpr: int = Field(description="현재가", alias="stck_prpr")
     prdy_vrss_sign: str = Field(
         description="전일대비부호 (1: 상한, 2: 상승, 3: 보합, 4: 하한, 5: 하락)",
@@ -526,28 +534,29 @@ class InquirePriceResponseOutput(BaseModel):
     prdy_ctrt: float = Field(description="전일대비율", alias="prdy_ctrt")
     acml_vol: int = Field(description="누적거래량", alias="acml_vol")
     acml_tr_pbmn: int = Field(description="누적거래대금", alias="acml_tr_pbmn")
-    prdy_vol: int = Field(description="전일거래량", alias="prdy_vol")
+    prdy_vol: int | None = Field(None, description="전일거래량", alias="prdy_vol")
     # ... many more fields can be added from the documentation
-    stck_oprc: int = Field(description="시가", alias="stck_oprc")
-    stck_hgpr: int = Field(description="고가", alias="stck_hgpr")
-    stck_lwpr: int = Field(description="저가", alias="stck_lwpr")
-    stck_mxpr: int = Field(description="상한가", alias="stck_mxpr")
-    stck_llpr: int = Field(description="하한가", alias="stck_llpr")
-    askp: int = Field(description="매도호가", alias="askp")
-    bidp: int = Field(description="매수호가", alias="bidp")
-    prdy_vol_vrss_vol_rate: float = Field(
+    stck_oprc: int | None = Field(None, description="시가", alias="stck_oprc")
+    stck_hgpr: int | None = Field(None, description="고가", alias="stck_hgpr")
+    stck_lwpr: int | None = Field(None, description="저가", alias="stck_lwpr")
+    stck_mxpr: int | None = Field(None, description="상한가", alias="stck_mxpr")
+    stck_llpr: int | None = Field(None, description="하한가", alias="stck_llpr")
+    askp: int | None = Field(None, description="매도호가", alias="askp")
+    bidp: int | None = Field(None, description="매수호가", alias="bidp")
+    prdy_vol_vrss_vol_rate: float | None = Field(
+        None,
         description="전일거래량대비",
         alias="prdy_vol_vrss_vol_rate",
     )
-    vol_tnrt: float = Field(description="거래량회전율", alias="vol_tnrt")
-    per: float = Field(description="PER", alias="per")
-    eps: int = Field(description="EPS", alias="eps")
-    pbr: float = Field(description="PBR", alias="pbr")
-    bps: int = Field(description="BPS", alias="bps")
-    dvsd_rrt: float = Field(description="배당수익률", alias="dvsd_rrt")
-    dvsd_amt: int = Field(description="배당락", alias="dvsd_amt")
-    stck_fcam: int = Field(description="액면가", alias="stck_fcam")
-    stck_parpr: int = Field(description="현재가", alias="stck_parpr")
+    vol_tnrt: float | None = Field(None, description="거래량회전율", alias="vol_tnrt")
+    per: float | None = Field(None, description="PER", alias="per")
+    eps: int | None = Field(None, description="EPS", alias="eps")
+    pbr: float | None = Field(None, description="PBR", alias="pbr")
+    bps: int | None = Field(None, description="BPS", alias="bps")
+    dvsd_rrt: float | None = Field(None, description="배당수익률", alias="dvsd_rrt")
+    dvsd_amt: int | None = Field(None, description="배당락", alias="dvsd_amt")
+    stck_fcam: int | None = Field(None, description="액면가", alias="stck_fcam")
+    stck_parpr: int | None = Field(None, description="현재가", alias="stck_parpr")
 
 
 class InquirePriceResponse(KISBaseResponse):

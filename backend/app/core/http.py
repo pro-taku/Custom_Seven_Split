@@ -31,7 +31,8 @@ async def _request(
             return response.json()
     except httpx.HTTPStatusError as e:
         logger.error(
-            f"HTTP error occurred: {e.response.status_code} - {e.response.text}",
+            f"HTTP error occurred: {e.response.status_code} - {e.response.text}"
+            f" Response body: {e.response.text}",
         )
         raise
     except httpx.RequestError as e:

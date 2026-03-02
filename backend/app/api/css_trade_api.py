@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.dto.css_trade_dto import CreateStrategyRequest, ChangeStrategyRequestDto
 from app.db.session import get_db
 from app.services.css_trade_service import CSSTradeService
 
@@ -11,40 +12,32 @@ router = APIRouter()
 
 @router.post("/strategy")
 async def create_strategy(
-    stock_code: str,
-    invested_capital: int,
-    buy_price: int,
-    buy_per: float = 0.97,
-    first_sell_per: float = 1.1,
-    sell_per: float = 1.05,
+    request: CreateStrategyRequest,
     db: Session = Depends(get_db),
 ):
     service = CSSTradeService(db)
     return await service.create_strategy(
-        stock_code=stock_code,
-        invested_capital=invested_capital,
-        buy_price=buy_price,
-        buy_per=buy_per,
-        first_sell_per=first_sell_per,
-        sell_per=sell_per,
+        stock_code=request.stock_code,
+        invested_capital=request.invested_capital,
+        buy_price=request.buy_price,
+        buy_per=request.buy_per,
+        first_sell_per=request.first_sell_per,
+        sell_per=request.sell_per,
     )
 
 @router.put("/strategy/{stock_code}")
 def change_strategy(
     stock_code: str,
-    buy_price: Optional[int] = None,
-    buy_per: Optional[float] = None,
-    first_sell_per: Optional[float] = None,
-    sell_per: Optional[float] = None,
+    request: ChangeStrategyRequestDto,
     db: Session = Depends(get_db),
 ):
     service = CSSTradeService(db)
     return service.change_strategy(
         stock_code=stock_code,
-        buy_price=buy_price,
-        buy_per=buy_per,
-        first_sell_per=first_sell_per,
-        sell_per=sell_per,
+        buy_price=request.buy_price,
+        buy_per=request.buy_per,
+        first_sell_per=request.first_sell_per,
+        sell_per=request.sell_per,
     )
 
 @router.delete("/strategy/{stock_code}")

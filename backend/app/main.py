@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import logging
 import os
@@ -29,20 +28,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Parse command-line arguments
-parser = argparse.ArgumentParser(
-    description="Run the Custom Seven Split FastAPI server.",
-)
-parser.add_argument(
-    "--env",
-    type=str,
-    default="V",
-    choices=["V", "R"],
-    help="Environment for KIS API (V: Virtual, R: Real). Defaults to Virtual.",
-)
-args = parser.parse_args()
+from app.core.config import GLOBAL_ENV
 
-# Global variable to store the environment
-GLOBAL_ENV = args.env
 logger.info(f"Running in KIS environment: {GLOBAL_ENV}")
 
 # Base API router for "/" endpoints
@@ -51,7 +38,10 @@ root_router = APIRouter()
 
 @root_router.get("/")
 async def root():
-    return {"message": "Welcome to Custom Seven Split API", "environment": GLOBAL_ENV}
+    return {
+        "message": "Welcome to Custom Seven Split API",
+        "environment": GLOBAL_ENV,
+    }
 
 
 # Lifespan context for startup and shutdown events
@@ -87,4 +77,4 @@ app.include_router(root_router)
 app.include_router(api_router, prefix="/api")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, port=8000)

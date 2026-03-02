@@ -12,7 +12,7 @@ from app.lib.kis.client import KISClient
 logger = logging.getLogger(__name__)
 
 # Global environment variable, set from main.py
-GLOBAL_ENV: str = "V"
+from app.core.config import GLOBAL_ENV
 
 
 class AssetService:
