@@ -18,7 +18,7 @@ class AssetService:
         self.kis_client = KISClient(env=GLOBAL_ENV)
 
     # 종목 매수 기록
-    async async def record_buy_stock(
+    async def record_buy_stock(
         self,
         split_level: int,
         stock_code: str,
@@ -65,7 +65,7 @@ class AssetService:
         TradeDB.update(self.db, trade_id=trade_id, status=1)
 
     # 종목 매도 기록
-    async def record_sell_stock(
+    def record_sell_stock(
         self,
         split_level: int,
         stock_code: str,
@@ -100,7 +100,7 @@ class AssetService:
 
     # cash flow 기록
     # 입출금, 배당금, 매매금 등을 기록하기 위한 함수
-    async def record_cash_flow(
+    def record_cash_flow(
         self,
         flow_type: CashFlowType,
         amount: int,
@@ -124,7 +124,7 @@ class AssetService:
         )
 
     # cash flow 수정
-    async def modify_cash_flow(
+    def modify_cash_flow(
         self,
         cash_flow_id: int,
         flow_type: CashFlowType = None,
@@ -143,14 +143,14 @@ class AssetService:
         )
 
     # cash flow 삭제
-    async def delete_cash_flow(self, cash_flow_id: int):
+    def delete_cash_flow(self, cash_flow_id: int):
         """
         cash_flow_db에서 특정 Row를 삭제
         """
         return CashFlow.delete(self.db, cash_flow_id)
 
     # 현금 흐름 조회
-    async def get_cash_flow(
+    def get_cash_flow(
         self,
         start_date: datetime,
         end_date: datetime,
@@ -326,7 +326,7 @@ class AssetService:
         )
 
     # 자산추이 수정
-    async def modify_asset_history(
+    def modify_asset_history(
         self,
         history_id: int,
         invested_capital: int = None,
@@ -370,13 +370,13 @@ class AssetService:
         )
 
     # 자산추이 삭제
-    async def delete_asset_history(self, history_id: int):
+    def delete_asset_history(self, history_id: int):
         """
         asset_history_db에서 특정 Row를 삭제
         """
         return AssetHistoryDB.delete(self.db, history_id)
 
     # 자산추이 조회
-    async def get_asset_history(self, start_date: datetime, end_date: datetime):
+    def get_asset_history(self, start_date: datetime, end_date: datetime):
         """asset_history_db에서 기간 안에 있는 Row를 조회 & 반환"""
         return AssetHistoryDB.select(self.db, start_date, end_date)

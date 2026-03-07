@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -56,9 +58,20 @@ async def cancel_order(
 
 @router.get("/orders")
 async def get_orders(
-    order_date: str,
-    product_code: str = "",
+    start_date: datetime,
+    end_date: datetime,
+    stock_code: str = None,
+    trade_type: str = None,
+    split_level: int = None,
+    status: int = None,
     db: Session = Depends(get_db),
 ):
     service = StockService(db)
-    return await service.get_orders(order_date=order_date, product_code=product_code)
+    return await service.get_orders(
+        start_date=start_date,
+        end_date=end_date,
+        stock_code=stock_code,
+        trade_type=trade_type,
+        split_level=split_level,
+        status=status,
+    )

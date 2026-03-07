@@ -63,7 +63,8 @@ def get_asset_history(
 
 
 @router.put("/history/{history_id}")
-def update_asset_history(
+async def update_asset_history(
+    history_id: int,
     invested_capital: int = None,
     stock_valutation: int = None,
     deposit: int = None,
@@ -90,7 +91,7 @@ def update_asset_history(
         return {"error": "At least one parameter must be provided."}
 
     service = AssetService(db)
-    await service.modify_asset_history(
+    service.modify_asset_history(
         history_id=history_id,
         invested_capital=invested_capital,
         stock_valutation=stock_valutation,
@@ -103,3 +104,10 @@ def update_asset_history(
         fund_change=fund_change,
     )
     return {"message": "Asset history updated successfully."}
+
+
+@router.delete("/history/{history_id}")
+def delete_asset_history(history_id: int, db: Session = Depends(get_db)):
+    service = AssetService(db)
+    service.delete_asset_history(history_id)
+    return {"message": "Asset history deleted successfully."}
