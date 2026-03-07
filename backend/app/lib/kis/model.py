@@ -28,11 +28,6 @@ class KISRequestHeader(BaseModel):
         description="고객 타입 (P: 개인, B: 법인)",
         alias="custtype",
     )
-    hashkey: str | None = Field(
-        None,
-        description="HashKey (주식주문 시 필수)",
-        alias="hashkey",
-    )
 
 
 class KISResponseHeader(BaseModel):
@@ -85,10 +80,6 @@ class OAuth2ApprovalRequest(BaseModel):
 
 class OAuth2ApprovalResponse(BaseModel):
     approval_key: str = Field(description="웹소켓 접속 키")
-    approval_key_token_expired: datetime = Field(
-        description="웹소켓 접속 키 만료 시간 (YYYY-MM-DD HH:MM:SS)",
-    )
-    expires_in: int = Field(description="웹소켓 접속 키 유효 시간 (초)")
 
 
 # --- 4. 주식주문 (현금) (Order Cash) ---
@@ -96,18 +87,16 @@ class OrderCashRequestHeader(KISRequestHeader):
     tr_id: str = Field(
         description="거래 ID (TTTC0012U: 매수, TTTC0011U: 매도, VTTC0012U: 모의매수, VTTC0011U: 모의매도)",
     )
-    hashkey: str | None = Field(
-        None,
-        description="HashKey (주식주문 시 필수)",
-        alias="hashkey",
-    )
 
 
 class OrderCashRequestBody(BaseModel):
     CANO: str = Field(description="종합계좌번호 (8자리)")
     ACNT_PRDT_CD: str = Field(description="계좌상품코드 (2자리)")
     PDNO: str = Field(description="종목코드 (6자리)")
-    ORD_DVSN: str = Field(description="주문구분 (00: 지정가, 01: 시장가 등)")
+    ORD_DVSN: str = Field(
+        description="주문구분 (00: 지정가, 01: 시장가 등)",
+        default="00",
+    )
     ORD_QTY: str = Field(description="주문수량")  # KIS API는 수량을 string으로 받음
     ORD_UNPR: str = Field(
         description="주문단가 (지정가 시 필수)",
@@ -141,9 +130,8 @@ class OrderRvsecnclRequestBody(BaseModel):
     ACNT_PRDT_CD: str = Field(description="계좌상품코드 (2자리)")
     KRX_FWDG_ORD_ORGNO: str = Field(description="한국거래소전송주문조직번호")
     ORGN_ODNO: str = Field(description="원주문번호")
-    PDNO: str = Field(description="종목코드 (6자리)")
-    RVSE_CNCL_DVSN_CD: str = Field(description="정정/취소구분코드 (01: 정정, 02: 취소)")
     ORD_DVSN: str = Field(description="주문구분 (00: 지정가 등)")
+    RVSE_CNCL_DVSN_CD: str = Field(description="정정/취소구분코드 (01: 정정, 02: 취소)")
     ORD_QTY: str = Field(description="주문수량")
     ORD_UNPR: str = Field(description="주문단가 (정정 시 필수)")
     QTY_ALL_ORD_YN: str = Field(description="잔량/전부 주문 여부 (Y: 전부, N: 잔량)")
@@ -209,114 +197,7 @@ class InquirePsblRvsecnclResponse(KISBaseResponse):
     output: list[InquirePsblRvsecnclResponseOutput] = Field(description="주문 목록")
 
 
-# --- 7. 주식잔고조회 (Inquire Balance) ---
-class InquireBalanceRequestHeader(KISRequestHeader):
-    tr_id: str = Field(description="거래 ID (TTTC8434R: 실전, VTTC8434R: 모의)")
-    tr_cont: str | None = Field(
-        None,
-        description="연속 거래 여부 (공백: 처음, N: 다음 페이지)",
-    )
-
-
-class InquireBalanceRequestQuery(BaseModel):
-    CANO: str = Field(description="계좌번호 앞 8자리")
-    ACNT_PRDT_CD: str = Field(description="계좌상품코드 뒤 2자리")
-    AFHR_FLPR_YN: str | None = Field(
-        "N",
-        description="시간외단일가, 거래소여부 (Y/N)",
-    )
-    INQR_DVSN: str | None = Field("01", description="조회구분 (01: 대출일별)")
-    UNPR_DVSN: str | None = Field("01", description="단가구분 (01: 매입평균단가)")
-    FUND_STTL_ICLD_YN: str | None = Field(
-        "N",
-        description="펀드결제분포함여부 (Y/N)",
-    )
-    FNCG_AMT_AUTO_RDPT_YN: str | None = Field(
-        "N",
-        description="융자금액자동상환여부 (Y/N)",
-    )
-    PRCS_DVSN: str | None = Field(
-        "00",
-        description="처리구분 (00: 전일매매포함, 01: 전일매매미포함)",
-    )
-    CTX_AREA_FK100: str | None = Field(
-        "",
-        description="연속 거래 시 이전 응답의 FK100",
-    )
-    CTX_AREA_NK100: str | None = Field(
-        "",
-        description="연속 거래 시 이전 응답의 NK100",
-    )
-
-
-class InquireBalanceResponseOutput1(BaseModel):  # stock balance info
-    pdno: str = Field(description="종목 코드")
-    prdt_name: str = Field(description="종목명")
-    trad_dvsn_name: str = Field(description="매매구분명")
-    bfdy_buy_qty: int = Field(description="전일매수수량", alias="bfdy_buy_qty")
-    bfdy_sll_qty: int = Field(description="전일매도수량", alias="bfdy_sll_qty")
-    thdt_buyqty: int = Field(description="금일매수수량", alias="thdt_buyqty")
-    thdt_sll_qty: int = Field(description="금일매도수량", alias="thdt_sll_qty")
-    hldg_qty: int = Field(description="보유수량", alias="hldg_qty")
-    ord_psbl_qty: int = Field(description="주문가능수량", alias="ord_psbl_qty")
-    pchs_avg_pric: int = Field(description="매입평균가격", alias="pchs_avg_pric")
-    pchs_amt: int = Field(description="매입금액", alias="pchs_amt")
-    prpr: int = Field(description="현재가", alias="prpr")
-    eval_prvs_amt: int = Field(description="평가금액", alias="eval_prvs_amt")
-    evlu_amt: int = Field(description="평가금액 (PRPR * HLDG_QTY)", alias="evlu_amt")
-    evlu_pfls_amt: int = Field(description="평가손익금액", alias="evlu_pfls_amt")
-    evlu_pfls_rt: float = Field(description="평가손익률", alias="evlu_pfls_rt")
-    ccl_cnld_amt: int = Field(description="결제예정금액", alias="ccl_cnld_amt")
-    rmn_qty: int = Field(description="잔고수량", alias="rmn_qty")
-    loan_dt: str | None = Field(None, description="대출일자")
-    loan_item_amt: int | None = Field(None, description="대출금액")
-    mgna_rt: float | None = Field(None, description="위탁증거금률")
-    item_chgrc_amt: int | None = Field(None, description="종목변경차액금액")
-    loan_exp_dt: str | None = Field(None, description="대출만기일")
-
-
-class InquireBalanceResponseOutput2(BaseModel):  # total balance info
-    dnca_tot_amt: int = Field(description="예수금총금액", alias="dnca_tot_amt")
-    nxdy_excc_amt: int = Field(
-        description="다음 영업일 출금가능금액",
-        alias="nxdy_excc_amt",
-    )
-    prvs_rcdl_excc_amt: int = Field(
-        description="전일 체결잔고 금액",
-        alias="prvs_rcdl_excc_amt",
-    )
-    cma_evlu_amt: int = Field(description="CMA평가금액", alias="cma_evlu_amt")
-    bfdy_buy_amt: int = Field(description="전일 매수금액", alias="bfdy_buy_amt")
-    thdt_buy_amt: int = Field(description="금일 매수금액", alias="thdt_buy_amt")
-    nxdy_buy_amt: int = Field(description="다음 영업일 매수금액", alias="nxdy_buy_amt")
-    bfdy_sll_amt: int = Field(description="전일 매도금액", alias="bfdy_sll_amt")
-    thdt_sll_amt: int = Field(description="금일 매도금액", alias="thdt_sll_amt")
-    nxdy_sll_amt: int = Field(description="다음 영업일 매도금액", alias="nxdy_sll_amt")
-    tot_sll_amt: int = Field(description="총 매도금액", alias="tot_sll_amt")
-    tot_buy_amt: int = Field(description="총 매수금액", alias="tot_buy_amt")
-    sttl_dt: str = Field(description="결제일 (YYYYMMDD)")
-    thdt_sttl_dpst: int = Field(description="금일 결제예수금", alias="thdt_sttl_dpst")
-    ottr_cash_rsv_amt: int = Field(
-        description="타사 출고 현금 예약금액",
-        alias="ottr_cash_rsv_amt",
-    )
-    ottr_crdt_rsv_amt: int = Field(
-        description="타사 출고 신용 예약금액",
-        alias="ottr_crdt_rsv_amt",
-    )
-
-
-class InquireBalanceResponse(KISBaseResponse):
-    ctx_area_fk100: str | None = Field(None, description="연속 거래를 위한 FK100")
-    ctx_area_nk100: str | None = Field(None, description="연속 거래를 위한 NK100")
-    output1: list[InquireBalanceResponseOutput1] = Field(description="주식 잔고 목록")
-    output2: InquireBalanceResponseOutput2 | None = Field(
-        None,
-        description="총 잔고 정보",
-    )
-
-
-# --- 8. 매수가능조회 (Inquire Psbl Order) ---
+# --- 7. 매수가능조회 (Inquire Psbl Order) ---
 class InquirePsblOrderRequestHeader(KISRequestHeader):
     tr_id: str = Field(description="거래 ID (TTTC8908R: 실전, VTTC8908R: 모의)")
 
@@ -329,35 +210,17 @@ class InquirePsblOrderRequestQuery(BaseModel):
         description="종목번호 (6자리, 빈 값: 전체 계좌 매수 가능금액)",
     )
     ORD_UNPR: str = Field(description="주문단가 (매수 가능 금액 조회 시 필수)")
-    ORD_QTY: str = Field(description="주문수량 (매수 가능 금액 조회 시 필수)")
     ORD_DVSN: str = Field(description="주문구분 (00: 지정가, 01: 시장가 등)")
-    CASH_PRCS_DVSN_CD: str = Field(
-        description="현금 처리 구분 코드 (01: 현금, 02: 위탁증거금)",
-    )
-    IVST_PDCT_TP_CD: str | None = Field(
-        "01",
-        description="투자상품유형코드 (01: 주식)",
-    )
-    LOAN_DT: str | None = Field("", description="대출일자 (신용거래 시)")
+    CMA_EVLU_AMT_ICLD_YN: str = Field(
+        description="CMA평가금액포함여부",
+        default="N",
+    )  # Y/N
+    OVRS_ICLD_YN: str = Field(description="해외포함여부", default="N")  # Y/N
 
 
 class InquirePsblOrderResponseOutput(BaseModel):
     ord_psbl_cash: int = Field(description="주문가능현금", alias="ord_psbl_cash")
-    ord_psbl_qty: int = Field(description="주문가능수량", alias="ord_psbl_qty")
-    ord_psbl_loan_rt_qty: int = Field(
-        description="주문가능융자비율수량",
-        alias="ord_psbl_loan_rt_qty",
-    )
-    ord_psbl_crdt_qty: int = Field(
-        description="주문가능신용수량",
-        alias="ord_psbl_crdt_qty",
-    )
-    ord_psbl_min_qty: int = Field(
-        description="주문가능최소수량",
-        alias="ord_psbl_min_qty",
-    )
-    max_prc: int = Field(description="최대주문가능금액", alias="max_prc")
-    min_prc: int = Field(description="최소주문가능금액", alias="min_prc")
+    nrcvb_buy_qty: int = Field(description="수량으로 매수 가능", alias="nrcvb_buy_qty")
 
 
 class InquirePsblOrderResponse(KISBaseResponse):
@@ -365,149 +228,6 @@ class InquirePsblOrderResponse(KISBaseResponse):
         None,
         description="응답 데이터",
     )
-
-
-# --- 9. 주식예약주문 (Order Resv) ---
-class OrderResvRequestHeader(KISRequestHeader):
-    tr_id: str = Field(description="거래 ID (CTSC0008U: 실전)")  # 모의투자 지원 X
-    hashkey: str | None = Field(
-        None,
-        description="HashKey (주식주문 시 필수)",
-        alias="hashkey",
-    )
-
-
-class OrderResvRequestBody(BaseModel):
-    CANO: str = Field(description="종합계좌번호 (8자리)")
-    ACNT_PRDT_CD: str = Field(description="계좌상품코드 (2자리)")
-    PDNO: str = Field(description="종목코드 (6자리)")
-    SLL_BUY_DVSN_CD: str = Field(description="매도/매수 구분코드 (01: 매도, 02: 매수)")
-    ORD_QTY: str = Field(description="주문수량")
-    ORD_UNPR: str = Field(description="주문단가")
-    RESV_QTY_ALL_ORD_YN: str = Field(
-        description="예약잔량/전부 주문 여부 (Y: 전부, N: 잔량)",
-    )
-    RESV_ORD_DVSN_CD: str = Field(
-        description="예약주문구분코드 (01: 지정가, 02: 시장가 등)",
-    )
-    RESV_ORD_TP_CD: str = Field(
-        description="예약주문유형코드 (01: 당일, 02: 익일, 03: 지정일)",
-    )
-    RESV_ORD_TRGT_DT: str | None = Field(
-        None,
-        description="예약주문대상일자 (YYYYMMDD, 지정일 시 필수)",
-    )
-    RESV_ORD_TMD: str | None = Field(
-        None,
-        description="예약주문시간 (HHMMSS, 지정일 시 필수)",
-    )
-    RESV_ORD_LMT_TMD: str | None = Field(
-        None,
-        description="예약주문제한시간 (HHMMSS, 지정일 시 필수)",
-    )
-    MOD_UNPR_DVSN_CD: str | None = Field(
-        "00",
-        description="수정단가구분코드 (00: 지정가)",
-    )
-    LMT_UNPR_TYPE_CD: str | None = Field(
-        "00",
-        description="한도단가유형코드 (00: 지정가)",
-    )
-
-
-class OrderResvResponseOutput(BaseModel):
-    RSRV_ODNO: str = Field(description="예약주문번호")
-    RESV_ORD_TMD: str = Field(description="예약주문시각")
-
-
-class OrderResvResponse(KISBaseResponse):
-    output: OrderResvResponseOutput | None = Field(None, description="응답 데이터")
-
-
-# --- 10. 주식예약주문 정정취소 (Order Resv Rvsecncl) ---
-class OrderResvRvsecnclRequestHeader(KISRequestHeader):
-    tr_id: str = Field(
-        description="거래 ID (CTSC0013U: 정정, CTSC0009U: 취소)",
-    )  # 모의투자 지원 X
-    hashkey: str | None = Field(
-        None,
-        description="HashKey (주식주문 시 필수)",
-        alias="hashkey",
-    )
-
-
-class OrderResvRvsecnclRequestBody(BaseModel):
-    CANO: str = Field(description="종합계좌번호 (8자리)")
-    ACNT_PRDT_CD: str = Field(description="계좌상품코드 (2자리)")
-    RSRV_ODNO: str = Field(description="예약주문번호")
-    SLL_BUY_DVSN_CD: str = Field(description="매도/매수 구분코드 (01: 매도, 02: 매수)")
-    PDNO: str = Field(description="종목코드 (6자리)")
-    RVSE_CNCL_DVSN_CD: str = Field(
-        description="정정/취소 구분코드 (01: 정정, 02: 취소)",
-    )
-    ORD_QTY: str = Field(description="주문수량")
-    ORD_UNPR: str = Field(description="주문단가 (정정 시 필수)")
-    QTY_ALL_ORD_YN: str = Field(description="잔량/전부 주문 여부 (Y: 전부, N: 잔량)")
-
-
-class OrderResvRvsecnclResponseOutput(BaseModel):
-    RSRV_ODNO: str = Field(description="예약주문번호")
-    RESV_ORD_TMD: str = Field(description="예약주문시각")
-
-
-class OrderResvRvsecnclResponse(KISBaseResponse):
-    output: OrderResvRvsecnclResponseOutput | None = Field(
-        None,
-        description="응답 데이터",
-    )
-
-
-# --- 11. 주식예약주문조회 (Order Resv Ccnl) ---
-class OrderResvCcnlRequestHeader(KISRequestHeader):
-    tr_id: str = Field(description="거래 ID (CTSC0004R: 실전)")  # 모의투자 지원 X
-    tr_cont: str | None = Field(
-        None,
-        description="연속 거래 여부 (공백: 처음, N: 다음 페이지)",
-    )
-
-
-class OrderResvCcnlRequestQuery(BaseModel):
-    CANO: str = Field(description="계좌번호 앞 8자리")
-    ACNT_PRDT_CD: str = Field(description="계좌상품코드 뒤 2자리")
-    CTX_AREA_FK100: str | None = Field(
-        "",
-        description="연속 거래 시 이전 응답의 FK100",
-    )
-    CTX_AREA_NK100: str | None = Field(
-        "",
-        description="연속 거래 시 이전 응답의 NK100",
-    )
-    INQR_DVSN: str = Field(
-        description="조회구분 (00: 전체, 01: 매도, 02: 매수, 03: 정정, 04: 취소)",
-    )
-    INQR_BGN_DT: str | None = Field(None, description="조회시작일자 (YYYYMMDD)")
-    INQR_END_DT: str | None = Field(None, description="조회종료일자 (YYYYMMDD)")
-
-
-class OrderResvCcnlResponseOutput(BaseModel):
-    rsrv_odno: str = Field(description="예약주문번호")
-    resv_ord_dvs_cd_name: str = Field(description="예약주문구분코드명")
-    sll_buy_dvsn_cd_name: str = Field(description="매도매수구분코드명")
-    ord_tp_cd_name: str = Field(description="주문유형코드명")
-    pdno: str = Field(description="종목번호")
-    prdt_name: str = Field(description="상품명")
-    ord_qty: int = Field(description="주문수량", alias="ord_qty")
-    ord_unpr: int = Field(description="주문단가", alias="ord_unpr")
-    ord_tmd: str = Field(description="주문시간 (HHMMSS)")
-    resv_trgt_dt: str = Field(description="예약처리대상일자 (YYYYMMDD)")
-    resv_tmd: str = Field(description="예약처리시간 (HHMMSS)")
-    resv_stts_cd_name: str = Field(description="예약상태코드명")
-
-
-class OrderResvCcnlResponse(KISBaseResponse):
-    ctx_area_fk100: str | None = Field(None, description="연속 거래를 위한 FK100")
-    ctx_area_nk100: str | None = Field(None, description="연속 거래를 위한 NK100")
-    output: list[OrderResvCcnlResponseOutput] = Field(description="예약주문 목록")
 
 
 # --- 12. 주식현재가 시세 (Inquire Price) ---
@@ -524,39 +244,8 @@ class InquirePriceRequestQuery(BaseModel):
 
 
 class InquirePriceResponseOutput(BaseModel):
-    iscd_entp_name: str | None = Field(None, description="기업명")
-    iscd_cd: str | None = Field(None, description="종목코드")
     stck_prpr: int = Field(description="현재가", alias="stck_prpr")
-    prdy_vrss_sign: str = Field(
-        description="전일대비부호 (1: 상한, 2: 상승, 3: 보합, 4: 하한, 5: 하락)",
-    )
-    prdy_vrss: int = Field(description="전일대비", alias="prdy_vrss")
-    prdy_ctrt: float = Field(description="전일대비율", alias="prdy_ctrt")
-    acml_vol: int = Field(description="누적거래량", alias="acml_vol")
-    acml_tr_pbmn: int = Field(description="누적거래대금", alias="acml_tr_pbmn")
-    prdy_vol: int | None = Field(None, description="전일거래량", alias="prdy_vol")
-    # ... many more fields can be added from the documentation
-    stck_oprc: int | None = Field(None, description="시가", alias="stck_oprc")
-    stck_hgpr: int | None = Field(None, description="고가", alias="stck_hgpr")
-    stck_lwpr: int | None = Field(None, description="저가", alias="stck_lwpr")
-    stck_mxpr: int | None = Field(None, description="상한가", alias="stck_mxpr")
-    stck_llpr: int | None = Field(None, description="하한가", alias="stck_llpr")
-    askp: int | None = Field(None, description="매도호가", alias="askp")
-    bidp: int | None = Field(None, description="매수호가", alias="bidp")
-    prdy_vol_vrss_vol_rate: float | None = Field(
-        None,
-        description="전일거래량대비",
-        alias="prdy_vol_vrss_vol_rate",
-    )
-    vol_tnrt: float | None = Field(None, description="거래량회전율", alias="vol_tnrt")
-    per: float | None = Field(None, description="PER", alias="per")
-    eps: int | None = Field(None, description="EPS", alias="eps")
-    pbr: float | None = Field(None, description="PBR", alias="pbr")
-    bps: int | None = Field(None, description="BPS", alias="bps")
-    dvsd_rrt: float | None = Field(None, description="배당수익률", alias="dvsd_rrt")
-    dvsd_amt: int | None = Field(None, description="배당락", alias="dvsd_amt")
-    stck_fcam: int | None = Field(None, description="액면가", alias="stck_fcam")
-    stck_parpr: int | None = Field(None, description="현재가", alias="stck_parpr")
+    aspr_unit: int = Field(description="호가단위", alias="aspr_unit")
 
 
 class InquirePriceResponse(KISBaseResponse):
@@ -580,25 +269,7 @@ class SearchStockInfoRequestQuery(BaseModel):
 
 
 class SearchStockInfoResponseOutput(BaseModel):
-    prdt_type_code: str = Field(description="상품유형코드")
-    prdt_type_name: str = Field(description="상품유형명")
-    prdt_name: str = Field(description="종목명")
-    prdt_name1: str = Field(description="종목명1")
-    std_pdno: str = Field(description="표준종목코드")
-    scty_kacd_name: str = Field(description="증권 종류 명")
-    stck_prpr: int = Field(description="현재가", alias="stck_prpr")
-    # ... many more fields from documentation
-    prdy_vrss_sign: str = Field(description="전일대비부호")
-    prdy_vrss: int = Field(description="전일대비")
-    prdy_ctrt: float = Field(description="전일대비율")
-    acml_vol: int = Field(description="누적거래량")
-    acml_tr_pbmn: int = Field(description="누적거래대금")
-    stck_fcam: int = Field(description="액면가")
-    stck_parpr: int = Field(description="호가단위")
-    list_prc: int = Field(description="상장가격")
-    list_dt: str = Field(description="상장일")
-    mrkt_name: str = Field(description="시장명")
-    spsb_eot_ratio: float = Field(description="신용증거금률")
+    prdt_name: str = Field(description="종목명", alias="prdt_name")
 
 
 class SearchStockInfoResponse(KISBaseResponse):
@@ -606,6 +277,34 @@ class SearchStockInfoResponse(KISBaseResponse):
         None,
         description="응답 데이터",
     )
+
+
+# --- 14. 국내휴장일조회 (Inquire Holiday) ---
+class InquireHolidayRequestHeader(KISRequestHeader):
+    tr_id: str = Field(description="거래 ID (CTRP6011R)")
+
+
+class InquireHolidayRequestQuery(BaseModel):
+    BASS_DT: str = Field(description="기준일자 (YYYYMMDD)")
+    CTX_AREA_FK100: str | None = Field("", description="연속 거래 시 이전 응답의 FK100")
+    CTX_AREA_NK100: str | None = Field("", description="연속 거래 시 이전 응답의 NK100")
+
+
+class InquireHolidayResponseOutput(BaseModel):
+    bass_dt: str = Field(description="기준일자 (YYYYMMDD)")
+    wday_cd: str = Field(
+        description="요일코드 (01:일, 02:월, 03:화, 04:수, 05:목, 06:금, 07:토)",
+    )
+    bzdy_yn: str = Field(description="영업일여부 (Y/N)")
+    tr_dy_yn: str = Field(description="거래일여부 (Y/N)")
+    opnd_yn: str = Field(description="개장일여부 (Y/N)")
+    sttl_dy_yn: str = Field(description="결제일여부 (Y/N)")
+
+
+class InquireHolidayResponse(KISBaseResponse):
+    ctx_area_fk100: str | None = Field(None, description="연속 거래를 위한 FK100")
+    ctx_area_nk100: str | None = Field(None, description="연속 거래를 위한 NK100")
+    output: list[InquireHolidayResponseOutput] = Field(description="휴장일 목록")
 
 
 # --- WebSocket Models ---

@@ -9,11 +9,12 @@ class AccountDB(Base):
 
     split_level = Column(Integer, primary_key=True)
     stock_code = Column(String, primary_key=True)
+    stock_name = Column(String)
     price = Column(Integer)
     count = Column(Integer)
 
     def __repr__(self):
-        return f"<AccountDB(split_level={self.split_level}, stock_code='{self.stock_code}', price={self.price}, count={self.count})>"
+        return f"<AccountDB(split_level={self.split_level}, stock_code='{self.stock_code}', stock_name='{self.stock_name}', price={self.price}, count={self.count})>"
 
     @classmethod
     def create(
@@ -21,12 +22,14 @@ class AccountDB(Base):
         db: Session,
         split_level: int,
         stock_code: str,
+        stock_name: str,
         price: int,
         count: int,
     ):
         new_account = cls(
             split_level=split_level,
             stock_code=stock_code,
+            stock_name=stock_name,
             price=price,
             count=count,
         )
@@ -53,6 +56,7 @@ class AccountDB(Base):
         db: Session,
         split_level: int,
         stock_code: str,
+        stock_name: str | None = None,
         new_price: int | None = None,
         new_count: int | None = None,
     ):
@@ -66,6 +70,8 @@ class AccountDB(Base):
                 account.price = new_price
             if new_count is not None:
                 account.count = new_count
+            if stock_name is not None:
+                account.stock_name = stock_name
             db.commit()
             db.refresh(account)
             return account
@@ -85,5 +91,15 @@ class AccountDB(Base):
         return False
 
     @classmethod
-    def select_virtual_account(cls, db: Session, split_level: int) -> list["AccountDB"]:
-        return db.query(cls).filter(cls.split_level == split_level).all()
+    def select(
+        cls,
+        db: Session,
+        split_level: int = None,
+        stock_code: str = None,
+    ) -> list["AccountDB"]:
+        query = db.query(cls)
+        if split_level is not None:
+            query = query.filter(cls.split_level == split_level)
+        if stock_code is not None:
+            query = query.filter(cls.stock_code == stock_code)
+        return query.all()

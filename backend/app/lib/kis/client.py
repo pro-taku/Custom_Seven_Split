@@ -1,25 +1,25 @@
-import json
-import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
+from fastapi.logger import logger
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import (
-    CUSTOMER_TYPE,
     KIS_REAL_DOMAIN,
     KIS_REAL_WS_DOMAIN,
     KIS_VIRTUAL_DOMAIN,
     KIS_VIRTUAL_WS_DOMAIN,
     TR,
+    TradeType,
     read_data,
     save_data,
 )
 from app.core.http import get, post
+from app.core.websocket import CSSWebSocket
 from app.lib.kis.model import (
-    InquireBalanceRequestHeader,
-    InquireBalanceRequestQuery,
-    InquireBalanceResponse,
+    InquireHolidayRequestHeader,
+    InquireHolidayRequestQuery,
+    InquireHolidayResponse,
     InquirePriceRequestHeader,
     InquirePriceRequestQuery,
     InquirePriceResponse,
@@ -31,8 +31,6 @@ from app.lib.kis.model import (
     InquirePsblRvsecnclResponse,
     KISBaseResponse,
     KISRequestHeader,
-    KISWebSocketHeader,
-    KISWebSocketInput,
     OAuth2ApprovalRequest,
     OAuth2ApprovalResponse,
     OAuth2RevokePRequest,
@@ -42,28 +40,13 @@ from app.lib.kis.model import (
     OrderCashRequestBody,
     OrderCashRequestHeader,
     OrderCashResponse,
-    OrderResvCcnlRequestHeader,
-    OrderResvCcnlRequestQuery,
-    OrderResvCcnlResponse,
-    OrderResvRequestBody,
-    OrderResvRequestHeader,
-    OrderResvResponse,
-    OrderResvRvsecnclRequestBody,
-    OrderResvRvsecnclRequestHeader,
-    OrderResvRvsecnclResponse,
     OrderRvsecnclRequestBody,
     OrderRvsecnclRequestHeader,
     OrderRvsecnclResponse,
-    RealtimeExecutionParsedOutput,
-    RealtimeExecutionResponse,
-    RealtimeQuoteParsedOutput,
-    RealtimeQuoteResponse,
     SearchStockInfoRequestHeader,
     SearchStockInfoRequestQuery,
     SearchStockInfoResponse,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class _KISProperty:
@@ -148,13 +131,6 @@ class KISClient(_KISProperty):
                 by_alias=True,
                 exclude_none=True,
             )
-
-        # Hashing functionality is currently disabled
-        # if is_hash_needed and request_body_model:
-        #     request_body_str = json.dumps(
-        #         request_body_model.model_dump(by_alias=True, exclude_none=True),
-        #     )
-        #     headers["hashkey"] = self.hashing(request_body_str)
 
         try:
             if method.lower() == "get":
@@ -277,23 +253,23 @@ class KISClient(_KISProperty):
 
     async def order_cash(
         self,
+        trade_type: TradeType,
         pdno: str,
         ord_qty: int,
         ord_unpr: int,
-        sll_buy_dvsn_cd: str,
         ord_dvsn: str = "00",
     ) -> OrderCashResponse:
         if not self.auth_token:
             await self.load_auth_token()
 
         tr_id = ""
-        if sll_buy_dvsn_cd == "SELL":
+        if trade_type == TradeType.SELL:
             tr_id = (
                 self.TR.TR_KS_SELL_V.value
                 if self.env == "V"
                 else self.TR.TR_KS_SELL_R.value
             )
-        elif sll_buy_dvsn_cd == "BUY":
+        elif trade_type == TradeType.BUY:
             tr_id = (
                 self.TR.TR_KS_BUY_V.value
                 if self.env == "V"
@@ -301,7 +277,7 @@ class KISClient(_KISProperty):
             )
         else:
             raise ValueError(
-                "Invalid sll_buy_dvsn_cd. Use 'SELL' for sell or 'BUY' for buy.",
+                "Invalid trade_type. Use 'SELL' for sell or 'BUY' for buy.",
             )
 
         request_header = OrderCashRequestHeader(
@@ -319,13 +295,6 @@ class KISClient(_KISProperty):
             ORD_UNPR=str(ord_unpr),
         )
 
-        # Hashing functionality is currently disabled
-        # request_body_json_str = request_body.model_dump_json(
-        #     by_alias=True,
-        #     exclude_none=True,
-        # )
-        # request_header.hashkey = self.hashing(request_body_json_str)
-
         return await self._send_request(
             method="post",
             api_path="/uapi/domestic-stock/v1/trading/order-cash",
@@ -337,11 +306,10 @@ class KISClient(_KISProperty):
     async def order_rvsecncl(
         self,
         orgn_odno: str,
-        pdno: str,
         rvse_cncl_dvsn_cd: str,
         ord_qty: int | None = None,
         ord_unpr: int | None = None,
-        krx_fwdg_ord_orgno: str = "000000",
+        krx_fwdg_ord_orgno: str = "000000",  # TODO: 수정 필요
         ord_dvsn: str = "00",
         qty_all_ord_yn: str = "N",
     ) -> OrderRvsecnclResponse:
@@ -372,20 +340,12 @@ class KISClient(_KISProperty):
             ACNT_PRDT_CD=self.account_suffix,
             KRX_FWDG_ORD_ORGNO=krx_fwdg_ord_orgno,
             ORGN_ODNO=orgn_odno,
-            PDNO=pdno,
             RVSE_CNCL_DVSN_CD=rvse_cncl_dvsn_cd,
             ORD_DVSN=ord_dvsn,
             ORD_QTY=str(ord_qty) if ord_qty is not None else "",
             ORD_UNPR=str(ord_unpr) if ord_unpr is not None else "",
             QTY_ALL_ORD_YN=qty_all_ord_yn,
         )
-
-        # Hashing functionality is currently disabled
-        # request_body_json_str = request_body.model_dump_json(
-        #     by_alias=True,
-        #     exclude_none=True,
-        # )
-        # request_header.hashkey = self.hashing(request_body_json_str)
 
         return await self._send_request(
             method="post",
@@ -402,6 +362,11 @@ class KISClient(_KISProperty):
         ctx_area_fk100: str = "",
         ctx_area_nk100: str = "",
     ) -> InquirePsblRvsecnclResponse:
+        if self.env == "V":
+            raise ValueError(
+                "Inquire possible revise/cancel is not supported in virtual investment environment.",
+            )
+
         if not self.auth_token:
             await self.load_auth_token()
 
@@ -434,62 +399,11 @@ class KISClient(_KISProperty):
             response_model=InquirePsblRvsecnclResponse,
         )
 
-    async def inquire_balance(
-        self,
-        afhr_flpr_yn: str = "N",
-        inqr_dvsn: str = "01",
-        unpr_dvsn: str = "01",
-        fund_sttl_icld_yn: str = "N",
-        fncg_amt_auto_rdpt_yn: str = "N",
-        prcs_dvsn: str = "00",
-        ctx_area_fk100: str = "",
-        ctx_area_nk100: str = "",
-    ) -> InquireBalanceResponse:
-        if not self.auth_token:
-            await self.load_auth_token()
-
-        tr_id = (
-            self.TR.TR_KS_ACCOUNT_V.value
-            if self.env == "V"
-            else self.TR.TR_KS_ACCOUNT_R.value
-        )
-
-        request_header = InquireBalanceRequestHeader(
-            Authorization=f"Bearer {self.auth_token}",
-            appkey=self.app_key,
-            appsecret=self.app_secret,
-            tr_id=tr_id,
-            tr_cont="N" if ctx_area_fk100 or ctx_area_nk100 else None,
-        )
-        request_query = InquireBalanceRequestQuery(
-            CANO=self.account_prefix,
-            ACNT_PRDT_CD=self.account_suffix,
-            AFHR_FLPR_YN=afhr_flpr_yn,
-            INQR_DVSN=inqr_dvsn,
-            UNPR_DVSN=unpr_dvsn,
-            FUND_STTL_ICLD_YN=fund_sttl_icld_yn,
-            FNCG_AMT_AUTO_RDPT_YN=fncg_amt_auto_rdpt_yn,
-            PRCS_DVSN=prcs_dvsn,
-            CTX_AREA_FK100=ctx_area_fk100,
-            CTX_AREA_NK100=ctx_area_nk100,
-        )
-        return await self._send_request(
-            method="get",
-            api_path="/uapi/domestic-stock/v1/trading/inquire-balance",
-            request_header_model=request_header,
-            request_query_model=request_query,
-            response_model=InquireBalanceResponse,
-        )
-
     async def inquire_psbl_order(
         self,
+        pdno: str,
         ord_unpr: int,
-        ord_qty: int,
-        pdno: str = "",
         ord_dvsn: str = "00",
-        cash_prcs_dvsn_cd: str = "01",
-        ivst_pdct_tp_cd: str = "01",
-        loan_dt: str = "",
     ) -> InquirePsblOrderResponse:
         if not self.auth_token:
             await self.load_auth_token()
@@ -511,11 +425,7 @@ class KISClient(_KISProperty):
             ACNT_PRDT_CD=self.account_suffix,
             PDNO=pdno,
             ORD_UNPR=str(ord_unpr),
-            ORD_QTY=str(ord_qty),
             ORD_DVSN=ord_dvsn,
-            CASH_PRCS_DVSN_CD=cash_prcs_dvsn_cd,
-            IVST_PDCT_TP_CD=ivst_pdct_tp_cd,
-            LOAN_DT=loan_dt,
         )
         return await self._send_request(
             method="get",
@@ -523,165 +433,6 @@ class KISClient(_KISProperty):
             request_header_model=request_header,
             request_query_model=request_query,
             response_model=InquirePsblOrderResponse,
-        )
-
-    async def order_resv(
-        self,
-        pdno: str,
-        sll_buy_dvsn_cd: str,
-        ord_qty: int,
-        ord_unpr: int,
-        resv_qty_all_ord_yn: str,
-        resv_ord_dvsn_cd: str,
-        resv_ord_tp_cd: str,
-        resv_ord_trgt_dt: str | None = None,
-        resv_ord_tmd: str | None = None,
-        resv_ord_lmt_tmd: str | None = None,
-        mod_unpr_dvsn_cd: str = "00",
-        lmt_unpr_type_cd: str = "00",
-    ) -> OrderResvResponse:
-        if self.env == "V":
-            raise ValueError(
-                "Reservation orders are not supported in virtual investment environment.",
-            )
-        if not self.auth_token:
-            await self.load_auth_token()
-
-        request_header = OrderResvRequestHeader(
-            Authorization=f"Bearer {self.auth_token}",
-            appkey=self.app_key,
-            appsecret=self.app_secret,
-            tr_id=self.TR.TR_KS_RESV_ORDER_R.value,
-        )
-        request_body = OrderResvRequestBody(
-            CANO=self.account_prefix,
-            ACNT_PRDT_CD=self.account_suffix,
-            PDNO=pdno,
-            SLL_BUY_DVSN_CD=sll_buy_dvsn_cd,
-            ORD_QTY=str(ord_qty),
-            ORD_UNPR=str(ord_unpr),
-            RESV_QTY_ALL_ORD_YN=resv_qty_all_ord_yn,
-            RESV_ORD_DVSN_CD=resv_ord_dvsn_cd,
-            RESV_ORD_TP_CD=resv_ord_tp_cd,
-            RESV_ORD_TRGT_DT=resv_ord_trgt_dt,
-            RESV_ORD_TMD=resv_ord_tmd,
-            RESV_ORD_LMT_TMD=resv_ord_lmt_tmd,
-            MOD_UNPR_DVSN_CD=mod_unpr_dvsn_cd,
-            LMT_UNPR_TYPE_CD=lmt_unpr_type_cd,
-        )
-
-        # Hashing functionality is currently disabled
-        # request_body_json_str = request_body.model_dump_json(
-        #     by_alias=True,
-        #     exclude_none=True,
-        # )
-        # request_header.hashkey = self.hashing(request_body_json_str)
-
-        return await self._send_request(
-            method="post",
-            api_path="/uapi/domestic-stock/v1/trading/order-resv",
-            request_header_model=request_header,
-            request_body_model=request_body,
-            response_model=OrderResvResponse,
-        )
-
-    async def order_resv_rvsecncl(
-        self,
-        rsrv_odno: str,
-        pdno: str,
-        sll_buy_dvsn_cd: str,
-        rvse_cncl_dvsn_cd: str,
-        ord_qty: int | None = None,
-        ord_unpr: int | None = None,
-        qty_all_ord_yn: str = "N",
-    ) -> OrderResvRvsecnclResponse:
-        if self.env == "V":
-            raise ValueError(
-                "Reservation orders are not supported in virtual investment environment.",
-            )
-        if not self.auth_token:
-            await self.load_auth_token()
-
-        tr_id = ""
-        if rvse_cncl_dvsn_cd == "01":
-            tr_id = self.TR.TR_KS_RESV_FIX_R.value
-        elif rvse_cncl_dvsn_cd == "02":
-            tr_id = self.TR.TR_KS_RESV_CANCEL_R.value
-        else:
-            raise ValueError(
-                "Invalid rvse_cncl_dvsn_cd. Use '01' for revise or '02' for cancel.",
-            )
-
-        request_header = OrderResvRvsecnclRequestHeader(
-            Authorization=f"Bearer {self.auth_token}",
-            appkey=self.app_key,
-            appsecret=self.app_secret,
-            tr_id=tr_id,
-        )
-        request_body = OrderResvRvsecnclRequestBody(
-            CANO=self.account_prefix,
-            ACNT_PRDT_CD=self.account_suffix,
-            RSRV_ODNO=rsrv_odno,
-            PDNO=pdno,
-            SLL_BUY_DVSN_CD=sll_buy_dvsn_cd,
-            RVSE_CNCL_DVSN_CD=rvse_cncl_dvsn_cd,
-            ORD_QTY=str(ord_qty) if ord_qty is not None else "",
-            ORD_UNPR=str(ord_unpr) if ord_unpr is not None else "",
-            QTY_ALL_ORD_YN=qty_all_ord_yn,
-        )
-
-        # Hashing functionality is currently disabled
-        # request_body_json_str = request_body.model_dump_json(
-        #     by_alias=True,
-        #     exclude_none=True,
-        # )
-        # request_header.hashkey = self.hashing(request_body_json_str)
-
-        return await self._send_request(
-            method="post",
-            api_path="/uapi/domestic-stock/v1/trading/order-resv-rvsecncl",
-            request_header_model=request_header,
-            request_body_model=request_body,
-            response_model=OrderResvRvsecnclResponse,
-        )
-
-    async def order_resv_cnnl(
-        self,
-        inqr_dvsn: str,
-        inqr_bgn_dt: str | None = None,
-        inqr_end_dt: str | None = None,
-        ctx_area_fk100: str = "",
-        ctx_area_nk100: str = "",
-    ) -> OrderResvCcnlResponse:
-        if self.env == "V":
-            raise ValueError(
-                "Reservation orders are not supported in virtual investment environment.",
-            )
-        if not self.auth_token:
-            await self.load_auth_token()
-
-        request_header = OrderResvCcnlRequestHeader(
-            Authorization=f"Bearer {self.auth_token}",
-            appkey=self.app_key,
-            appsecret=self.app_secret,
-            tr_id=self.TR.TR_KS_RESV_SELECT_R.value,
-            tr_cont="N" if ctx_area_fk100 or ctx_area_nk100 else None,
-        )
-        request_query = OrderResvCcnlRequestQuery(
-            CANO=self.account_prefix,
-            ACNT_PRDT_CD=self.account_suffix,
-            CTX_AREA_FK100=ctx_area_fk100,
-            CTX_AREA_NK100=ctx_area_nk100,
-            INQR_DVSN=inqr_dvsn,
-            INQR_BGN_DT=inqr_bgn_dt,
-            INQR_END_DT=inqr_end_dt,
-        )
-        return await self._send_request(
-            method="get",
-            api_path="/uapi/domestic-stock/v1/trading/order-resv-ccnl",
-            request_header_model=request_header,
-            request_query_model=request_query,
-            response_model=OrderResvCcnlResponse,
         )
 
     async def inquire_price(
@@ -715,6 +466,11 @@ class KISClient(_KISProperty):
         fid_input_iscd: str,
         fid_cond_mrkt_div_code: str = "J",
     ) -> SearchStockInfoResponse:
+        if self.env == "V":
+            raise ValueError(
+                "Stock information search is not supported in virtual investment environment.",
+            )
+
         if not self.auth_token:
             await self.load_auth_token()
 
@@ -736,23 +492,62 @@ class KISClient(_KISProperty):
             response_model=SearchStockInfoResponse,
         )
 
+    async def chk_holiday(self, date: str) -> bool:
+        """
+        국내 휴장일 여부 조회
+        :param date: 기준일자 (YYYYMMDD)
+        :return: 휴장일이면 True, 영업일이면 False
+        """
+        if self.env == "V":
+            raise ValueError(
+                "Stock information search is not supported in virtual investment environment.",
+            )
+
+        if not self.auth_token:
+            await self.load_auth_token()
+
+        request_header = InquireHolidayRequestHeader(
+            Authorization=f"Bearer {self.auth_token}",
+            appkey=self.app_key,
+            appsecret=self.app_secret,
+            tr_id=self.TR.TR_KS_HOLIDAY.value,
+        )
+        request_query = InquireHolidayRequestQuery(
+            BASS_DT=date,
+        )
+
+        response = await self._send_request(
+            method="get",
+            api_path="/uapi/domestic-stock/v1/quotations/chk-holiday",
+            request_header_model=request_header,
+            request_query_model=request_query,
+            response_model=InquireHolidayResponse,
+        )
+
+        if response.rt_cd == "0" and response.output:
+            for item in response.output:
+                if item.bass_dt == date:
+                    # opnd_yn: 개장일여부 (Y: 개장, N: 휴장)
+                    return item.opnd_yn == "N"
+
+        logger.warning(
+            f"Could not determine holiday status for {date}. Assuming it's a holiday.",
+        )
+        return True
+
 
 class KISWsClient(_KISProperty):
     def __init__(self, env: str = "V", account_num: str | None = None):
         super().__init__(env, account_num)
-        self.websocket_client: Any | None = None
+        self.websocket = CSSWebSocket(ws_url=self.ws_domain)
         self.approval_key: str | None = self.ws_token
 
     async def load_websocket_approval_key(self) -> OAuth2ApprovalResponse:
+        """Load the WebSocket approval key."""
         if self.approval_key:
             logger.info("WebSocket approval key is already available.")
             return OAuth2ApprovalResponse(
-                rt_cd="0",
-                msg_cd="KISA0000",
-                msg1="Valid Approval Key",
                 approval_key=self.approval_key,
-                approval_key_token_expired=datetime.now(),
-                expires_in=0,
             )
 
         api_url = "/oauth2/Approval"
@@ -763,8 +558,6 @@ class KISWsClient(_KISProperty):
 
         headers = {
             "Content-Type": "application/json; charset=utf-8",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret,
         }
 
         try:
@@ -775,263 +568,33 @@ class KISWsClient(_KISProperty):
             )
             response = OAuth2ApprovalResponse.model_validate(response_json)
 
-            if response.rt_cd == "0":
-                self.approval_key = response.approval_key
-                self.ws_token = response.approval_key
-                save_data("ws_token", self.ws_token)
-                # TODO: Save approval_key_token_expired and expires_in for proper management
-                logger.info("WebSocket approval key issued and saved successfully.")
-            else:
-                logger.error(f"Failed to issue WebSocket approval key: {response.msg1}")
+            self.approval_key = response.approval_key
+            self.ws_token = response.approval_key
+            save_data("ws_token", self.ws_token)
+            logger.info("WebSocket approval key issued and saved successfully.")
             return response
         except Exception as e:
             logger.error(f"Error getting WebSocket approval key: {e}")
             raise
 
-    def _send_websocket_request(
-        self,
-        tr_id: str,
-        tr_key: str,
-        tr_type: str,
-        req_type: str = "0",
-    ) -> str:
-        if not self.approval_key:
-            logger.error(
-                "WebSocket approval key is not available. Call load_websocket_approval_key first.",
-            )
-            raise ValueError("WebSocket approval key is required.")
-
-        header = KISWebSocketHeader(
-            approval_key=self.approval_key,
-            custtype=CUSTOMER_TYPE,
-            tr_type=tr_type,
-        )
-        body = {"input": KISWebSocketInput(tr_id=tr_id, tr_key=tr_key)}
-
-        request_data = {
-            "header": header.model_dump(by_alias=True),
-            "body": body,
-            "REQUSET_TYPE": req_type,
-        }
-        return json.dumps(request_data)
-
-    def subscribe_realtime_quote(self, stock_code: str) -> str:
-        return self._send_websocket_request(
-            tr_id=self.TR.TR_KS_RT_PRICE_R.value,
-            tr_key=stock_code,
-            tr_type="2",
-            req_type="0",
-        )
-
-    def subscribe_realtime_execution(self, account_num: str) -> str:
-        return self._send_websocket_request(
+    def register_check_execution_realtime(self):
+        """Register for real-time execution notifications."""
+        message = self._send_websocket_request(
             tr_id=self.TR.TR_KS_ORDER_CHECK_R.value,
-            tr_key=account_num,
+            tr_key=self.account_num,
             tr_type="1",
             req_type="0",
         )
+        self.websocket.add_message(message)
+        self.websocket.send_message()
 
-    def unsubscribe_realtime_data(self, tr_id: str, tr_key: str, tr_type: str) -> str:
-        return self._send_websocket_request(
-            tr_id=tr_id,
-            tr_key=tr_key,
-            tr_type=tr_type,
+    def unregister_check_execution_realtime(self):
+        """Unregister from real-time execution notifications."""
+        message = self._send_websocket_request(
+            tr_id=self.TR.TR_KS_ORDER_CHECK_R.value,
+            tr_key=self.account_num,
+            tr_type="1",
             req_type="1",
         )
-
-    def _process_websocket_message(
-        self,
-        message: str,
-    ) -> tuple[dict, RealtimeQuoteResponse | RealtimeExecutionResponse | None]:
-        try:
-            if "|" in message:
-                json_part, data_part = message.split("|", 1)
-                header_and_body = json.loads(json_part)
-
-                tr_id = header_and_body.get("header", {}).get("tr_id")
-                tr_key = header_and_body.get("body", {}).get("output", {}).get("tr_key")
-
-                parsed_output = None
-                if tr_id == self.TR.TR_KS_RT_PRICE_R.value:
-                    data_fields = data_part.split("^")
-                    try:
-                        parsed_output = RealtimeQuoteParsedOutput(
-                            stck_shrn_iscd=data_fields[0],
-                            stck_prpr=int(data_fields[1]),
-                            prdy_vrss_sign=data_fields[2],
-                            prdy_vrss=int(data_fields[3]),
-                            prdy_ctrt=float(data_fields[4]),
-                            askp1=int(data_fields[5]),
-                            bidp1=int(data_fields[6]),
-                            askp_rsqn1=int(data_fields[7]),
-                            bidp_rsqn1=int(data_fields[8]),
-                            askp2=int(data_fields[9]) if len(data_fields) > 9 else 0,
-                            bidp2=int(data_fields[10]) if len(data_fields) > 10 else 0,
-                            askp_rsqn2=int(data_fields[11])
-                            if len(data_fields) > 11
-                            else 0,
-                            bidp_rsqn2=int(data_fields[12])
-                            if len(data_fields) > 12
-                            else 0,
-                            askp3=int(data_fields[13]) if len(data_fields) > 13 else 0,
-                            bidp3=int(data_fields[14]) if len(data_fields) > 14 else 0,
-                            askp_rsqn3=int(data_fields[15])
-                            if len(data_fields) > 15
-                            else 0,
-                            bidp_rsqn3=int(data_fields[16])
-                            if len(data_fields) > 16
-                            else 0,
-                            askp4=int(data_fields[17]) if len(data_fields) > 17 else 0,
-                            bidp4=int(data_fields[18]) if len(data_fields) > 18 else 0,
-                            askp_rsqn4=int(data_fields[19])
-                            if len(data_fields) > 19
-                            else 0,
-                            bidp_rsqn4=int(data_fields[20])
-                            if len(data_fields) > 20
-                            else 0,
-                            askp5=int(data_fields[21]) if len(data_fields) > 21 else 0,
-                            bidp5=int(data_fields[22]) if len(data_fields) > 22 else 0,
-                            askp_rsqn5=int(data_fields[23])
-                            if len(data_fields) > 23
-                            else 0,
-                            bidp_rsqn5=int(data_fields[24])
-                            if len(data_fields) > 24
-                            else 0,
-                            askp6=int(data_fields[25]) if len(data_fields) > 25 else 0,
-                            bidp6=int(data_fields[26]) if len(data_fields) > 26 else 0,
-                            askp_rsqn6=int(data_fields[27])
-                            if len(data_fields) > 27
-                            else 0,
-                            bidp_rsqn6=int(data_fields[28])
-                            if len(data_fields) > 28
-                            else 0,
-                            askp7=int(data_fields[29]) if len(data_fields) > 29 else 0,
-                            bidp7=int(data_fields[30]) if len(data_fields) > 30 else 0,
-                            askp_rsqn7=int(data_fields[31])
-                            if len(data_fields) > 31
-                            else 0,
-                            bidp_rsqn7=int(data_fields[32])
-                            if len(data_fields) > 32
-                            else 0,
-                            askp8=int(data_fields[33]) if len(data_fields) > 33 else 0,
-                            bidp8=int(data_fields[34]) if len(data_fields) > 34 else 0,
-                            askp_rsqn8=int(data_fields[35])
-                            if len(data_fields) > 35
-                            else 0,
-                            bidp_rsqn8=int(data_fields[36])
-                            if len(data_fields) > 36
-                            else 0,
-                            askp9=int(data_fields[37]) if len(data_fields) > 37 else 0,
-                            bidp9=int(data_fields[38]) if len(data_fields) > 38 else 0,
-                            askp_rsqn9=int(data_fields[39])
-                            if len(data_fields) > 39
-                            else 0,
-                            bidp_rsqn9=int(data_fields[40])
-                            if len(data_fields) > 40
-                            else 0,
-                            askp10=int(data_fields[41]) if len(data_fields) > 41 else 0,
-                            bidp10=int(data_fields[42]) if len(data_fields) > 42 else 0,
-                            askp_rsqn10=int(data_fields[43])
-                            if len(data_fields) > 43
-                            else 0,
-                            bidp_rsqn10=int(data_fields[44])
-                            if len(data_fields) > 44
-                            else 0,
-                            total_askp_rsqn=int(data_fields[45])
-                            if len(data_fields) > 45
-                            else 0,
-                            total_bidp_rsqn=int(data_fields[46])
-                            if len(data_fields) > 46
-                            else 0,
-                            ovrs_vol=int(data_fields[47])
-                            if len(data_fields) > 47
-                            else 0,
-                            ovrs_tr_pbmn=int(data_fields[48])
-                            if len(data_fields) > 48
-                            else 0,
-                            chgh_cnt=int(data_fields[49])
-                            if len(data_fields) > 49
-                            else 0,
-                        )
-                        response_model_instance = RealtimeQuoteResponse(
-                            tr_id=tr_id,
-                            tr_key=tr_key if tr_key else data_fields[0],
-                            rt_cd=header_and_body.get("header", {}).get("rt_cd", "1"),
-                            msg_cd=header_and_body.get("header", {}).get("msg_cd", ""),
-                            msg1=header_and_body.get("header", {}).get("msg1", ""),
-                            output=parsed_output,
-                        )
-                        return header_and_body.get(
-                            "header",
-                            {},
-                        ), response_model_instance
-                    except (IndexError, ValueError) as e:
-                        logger.error(
-                            f"Error parsing real-time quote data part: {e} in {data_part}",
-                        )
-                        return header_and_body.get("header", {}), None
-
-                elif (
-                    tr_id == self.TR.TR_KS_ORDER_CHECK_R.value
-                    or tr_id == self.TR.TR_KS_ORDER_CHECK_V.value
-                ):
-                    data_fields = data_part.split("^")
-                    try:
-                        parsed_output = RealtimeExecutionParsedOutput(
-                            trade_type=data_fields[0],
-                            odno=data_fields[1],
-                            orgn_odno=data_fields[2],
-                            iscd=data_fields[3],
-                            ord_unpr=int(data_fields[4]),
-                            ord_qty=int(data_fields[5]),
-                            ord_tmd=data_fields[6],
-                            ccld_qty=int(data_fields[7]),
-                            ccld_prc=int(data_fields[8]),
-                            ccld_tmd=data_fields[9],
-                            rmn_qty=int(data_fields[10]),
-                            prdt_name=data_fields[11],
-                            sll_buy_dvsn_cd=data_fields[12],
-                            ord_dvsn_cd=data_fields[13],
-                        )
-                        response_model_instance = RealtimeExecutionResponse(
-                            tr_id=tr_id,
-                            tr_key=tr_key if tr_key else self.account_num,
-                            rt_cd=header_and_body.get("header", {}).get("rt_cd", "1"),
-                            msg_cd=header_and_body.get("header", {}).get("msg_cd", ""),
-                            msg1=header_and_body.get("header", {}).get("msg1", ""),
-                            output=parsed_output,
-                        )
-                        return header_and_body.get(
-                            "header",
-                            {},
-                        ), response_model_instance
-                    except (IndexError, ValueError) as e:
-                        logger.error(
-                            f"Error parsing real-time execution data part: {e} in {data_part}",
-                        )
-                        return header_and_body.get("header", {}), None
-
-                else:
-                    logger.warning(f"Unknown tr_id received: {tr_id}")
-                    return header_and_body.get("header", {}), None
-
-            else:
-                control_message = json.loads(message)
-                logger.debug(f"Received control message: {control_message}")
-                return control_message.get("header", {}), None
-
-        except json.JSONDecodeError as e:
-            logger.error(
-                f"JSON decoding error in WebSocket message: {e} from {message}",
-            )
-            return {}, None
-        except ValidationError as e:
-            logger.error(
-                f"Pydantic validation error for WebSocket message: {e.errors()} from {message}",
-            )
-            return {}, None
-        except Exception as e:
-            logger.error(
-                f"Unexpected error processing WebSocket message: {e} from {message}",
-            )
-            return {}, None
+        self.websocket.add_message(message)
+        self.websocket.send_message()

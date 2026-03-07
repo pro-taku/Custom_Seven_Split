@@ -12,13 +12,6 @@ from app.services.stock_service import StockService
 router = APIRouter()
 
 
-@router.get("/{stock_code}/price")
-async def get_current_price(stock_code: str, db: Session = Depends(get_db)):
-    service = StockService(db)
-    output = await service.get_current_price(stock_code)
-    return {"stock_code": stock_code, "output": output}
-
-
 @router.post("/order")
 async def order(
     request: OrderRequestDto,
@@ -69,9 +62,3 @@ async def get_orders(
 ):
     service = StockService(db)
     return await service.get_orders(order_date=order_date, product_code=product_code)
-
-
-@router.get("/{stock_code}/info")
-async def get_stock_info(stock_code: str, db: Session = Depends(get_db)):
-    service = StockService(db)
-    return await service.get_stock_info(stock_code)

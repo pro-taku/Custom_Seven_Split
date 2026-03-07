@@ -12,42 +12,42 @@ class AssetHistoryDB(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=dt.datetime.now)
     invested_capital = Column(Integer)
-    total_asset_value = Column(Integer)  # Renamed from stock_valutation
-    cash_balance = Column(Integer)  # Renamed from deposit
+    stock_valutation = Column(Integer)
+    deposit = Column(Integer)
     net_cash_flow = Column(Integer)
     dividend = Column(Integer)
     interest = Column(Integer)
-    stock_pnl = Column(Integer)  # Renamed from stock_profit_loss
-    total_pnl = Column(Integer)  # Renamed from total_profit_loss
-    net_asset_change = Column(Integer)  # Renamed from fund_change
+    stock_profit_loss = Column(Integer)
+    total_profit_loss = Column(Integer)
+    fund_change = Column(Integer)
 
     def __repr__(self):
-        return f"<AssetHistoryDB(id={self.id}, created_at={self.created_at}, total_asset_value={self.total_asset_value})>"
+        return f"<AssetHistoryDB(id={self.id}, created_at={self.created_at}, stock_valutation={self.stock_valutation})>"
 
     @classmethod
     def create(
         cls,
         db: Session,
         invested_capital: int,
-        total_asset_value: int,
-        cash_balance: int,
+        stock_valutation: int,
+        deposit: int,
         net_cash_flow: int,
         dividend: int,
         interest: int,
-        stock_pnl: int,
-        total_pnl: int,
-        net_asset_change: int,
+        stock_profit_loss: int,
+        total_profit_loss: int,
+        fund_change: int,
     ):
         new_history = cls(
             invested_capital=invested_capital,
-            total_asset_value=total_asset_value,
-            cash_balance=cash_balance,
+            stock_valutation=stock_valutation,
+            deposit=deposit,
             net_cash_flow=net_cash_flow,
             dividend=dividend,
             interest=interest,
-            stock_pnl=stock_pnl,
-            total_pnl=total_pnl,
-            net_asset_change=net_asset_change,
+            stock_profit_loss=stock_profit_loss,
+            total_profit_loss=total_profit_loss,
+            fund_change=fund_change,
         )
         db.add(new_history)
         db.commit()
@@ -83,7 +83,7 @@ class AssetHistoryDB(Base):
         return False
 
     @classmethod
-    def select_in_period(
+    def select(
         cls,
         db: Session,
         start_date: dt.datetime,

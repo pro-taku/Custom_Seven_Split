@@ -1,11 +1,9 @@
-import logging
 import os
 from enum import Enum
 from typing import Optional
 
+from fastapi.logger import logger
 from ruamel.yaml import YAML
-
-logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -18,12 +16,38 @@ MAX_SPLIT_LEVEL = 7  # 최대 분할 레벨 (수정 가능)
 
 # Global environment variable for KIS API (V: Virtual, R: Real)
 GLOBAL_ENV = os.getenv("KIS_ENV", "V")
+IS_HOLIDAY = False # 휴장일 여부
+
+############################################################################
+
+
+class TradeType(Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+
+class TradeStatus(Enum):
+    PENDING = 0  # 대기중
+    EXECUTED = 1  # 체결
+    CANCELED = 2  # 취소
+
+
+class CashFlowType(Enum):
+    INPUT = "input"
+    OUTPUT = "output"
+    BUY = "buy"
+    SELL = "sell"
+    DIVIDEND = "dividend"
+    INTEREST = "interest"
+
 
 ############################################################################
 
 # 이 시스템은 SQLite를 DB로 쓰고 있다.
 # 이건 backend 폴더에서 db 파일의 위치를 뜻한다
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sevensplit.db")
+
+############################################################################
 
 # KIS 실전/모의투자 도메인
 KIS_REAL_DOMAIN = "https://openapi.koreainvestment.com:9443"
@@ -70,6 +94,7 @@ class TR(Enum):
     TR_KS_PRICE_V = "FHKST01010100"  # 모의 주식 현재가
     TR_KS_RT_PRICE_R = "H0STASP0"  # 실전 실시간 주식 호가
     TR_KS_RT_PRICE_V = "H0STASP0"  # 모의 실시간 주식 호가
+    TR_KS_HOLIDAY = "CTRP6011R"  # 국내 휴장일 조회
 
 
 ############################################################################

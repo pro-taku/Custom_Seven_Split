@@ -12,7 +12,7 @@ class CashFlow(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=dt.datetime.now)
     deposit = Column(Integer)
-    type = Column(String)  # input, output, buy, sell, dividend, interest
+    type = Column(String)
     amount = Column(Integer)
 
     def __repr__(self):
@@ -55,18 +55,20 @@ class CashFlow(Base):
         return False
 
     @classmethod
-    def select_in_period(
+    def select(
         cls,
         db: Session,
-        start_date: dt.datetime,
-        end_date: dt.datetime,
+        start_date: dt.datetime = None,
+        end_date: dt.datetime = None,
+        type: str = None,
     ) -> list["CashFlow"]:
-        return (
-            db.query(cls)
-            .filter(cls.created_at >= start_date, cls.created_at <= end_date)
-            .all()
-        )
+        if start_date is None:
+            start_date = dt.datetime.now() - dt.timedelta(days=30)
+        if end_date is None:
+            end_date = dt.datetime.now()
 
-    @classmethod
-    def select_by_type(cls, db: Session, flow_type: str) -> list["CashFlow"]:
-        return db.query(cls).filter(cls.type == flow_type).all()
+        query = db.query(cls)
+        if type is not None:
+            query = query.filter(cls.type == type)
+        query = query.filter(cls.created_at >= start_date, cls.created_at <= end_date)
+        return query.all()

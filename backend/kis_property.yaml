@@ -1,12 +1,12 @@
 # 실전투자
-real_app_key: "PSVjEgm9CmPhX6LbShR5VsB2Gp92hnxhB6dH"
-real_app_secret: "Cc8Rz9bCilAkwFy9fOVLhfczmjv/g6jEJeiJr+OGu5atoayLwJNdYPgZogIMZmunVxQ7Jj+VFJKCBp4J0eQLYH7SdWn5cwSIvg19pZUY41bfG91PLmA6OCbZ8uJF0in32US/9uj/RBZ+hKSWmw8gVu3pVQdN3ppApotAASBQi/vXEvnn7V4="
+real_app_key: "PSzDqXpzwUwA58EyHQxr87wp5knAXPD5yjFS"
+real_app_secret: "UkwuStmSxSu/I8cVlfm/souBl4JZj3PD3BgOJGKteeWjQbyppu3KnuK7fdjbdmJR7S2EJJFeeK03r46pWOTPuSiqv9YdENFGJNwB0tD4o0kWfXQLcU/FAmKkudA7mVKS5058SgLK2NiyIvs0G7sV+P/ezXl4Z+ULPYy0lhmG1rkNw4xdVQY="
 real_account: "44070284"
 real_prod: "01" # 계좌번호 뒤 2자리
 
 # 모의투자
-virtual_app_key: "PSzDqXpzwUwA58EyHQxr87wp5knAXPD5yjFS"
-virtual_app_secret: "UkwuStmSxSu/I8cVlfm/souBl4JZj3PD3BgOJGKteeWjQbyppu3KnuK7fdjbdmJR7S2EJJFeeK03r46pWOTPuSiqv9YdENFGJNwB0tD4o0kWfXQLcU/FAmKkudA7mVKS5058SgLK2NiyIvs0G7sV+P/ezXl4Z+ULPYy0lhmG1rkNw4xdVQY="
+virtual_app_key: "PSVjEgm9CmPhX6LbShR5VsB2Gp92hnxhB6dH"
+virtual_app_secret: "Cc8Rz9bCilAkwFy9fOVLhfczmjv/g6jEJeiJr+OGu5atoayLwJNdYPgZogIMZmunVxQ7Jj+VFJKCBp4J0eQLYH7SdWn5cwSIvg19pZUY41bfG91PLmA6OCbZ8uJF0in32US/9uj/RBZ+hKSWmw8gVu3pVQdN3ppApotAASBQi/vXEvnn7V4="
 virtual_account: "50170134"
 virtual_prod: "01" # 계좌번호 뒤 2자리
 
@@ -15,36 +15,9 @@ virtual_prod: "01" # 계좌번호 뒤 2자리
 invest_env: "V"
 
 # API 토큰
-auth_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0b2tlbiIsImF1ZCI6IjUyNWZjMTcxLTdiOGItNDY2ZS04OWQzLTcxNWY3NTgzZjVmOSIsInByZHRfY2QiOiIiLCJpc3MiOiJ1bm9ndyIsImV4cCI6MTc3MjUxODU0MSwiaWF0IjoxNzcyNDMyMTQxLCJqdGkiOiJQU3pEcVhwendVd0E1OEV5SFF4cjg3d3A1a25BWFBENXlqRlMifQ._pX2TCZMjiunxtaIBhOwGWGGI2nxTKsoiHzZS1VsJQljUtCyu-QyRLPAtABbVH7eUCvLe7E46i4Ib-9_KHmufA"
-token_type: "Bearer"
-expired_time: "2026-03-03 15:15:41"
+auth_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0b2tlbiIsImF1ZCI6IjMxYjg3MjNmLTljMzMtNDM2Mi1iZmYwLWVlNjhlMWE4ZTg5NiIsInByZHRfY2QiOiIiLCJpc3MiOiJ1bm9ndyIsImV4cCI6MTc3MjYxMjAwNiwiaWF0IjoxNzcyNTI1NjA2LCJqdGkiOiJQU3pEcVhwendVd0E1OEV5SFF4cjg3d3A1a25BWFBENXlqRlMifQ.VpjvIG9wkMAUaCGZNKUfxOWNfSoa94qIK_WAz-kps8y3SSMB7rzSUSgZfmEljtZMqknlF03Cw_4llzIFG8cwpA"
+token_type: ""
+expired_time: ""
 
 # 웹소켓 토큰
-ws_token: ""
-
-
-# {
-# 'CANO': '44070284', 
-# 'ACNT_PRDT_CD': '', 
-# 'PDNO': '005930', 
-# 'ORD_DVSN': '00', 
-# 'ORD_QTY': '10', 
-# 'ORD_UNPR': '60000', 
-# 'FX_QTY_RSBL_CODE': '0', 
-# 'TR_ICLD_FX_QTY': '0', 
-# 'RSVN_SYS_DV_CD': '00', 
-# 'NMPR_TR_MDCD': '00', 
-# 'EXCC_MEDM_CTNT': ' ',
-# 'DLBS_DVSN_CD': '00'
-# }
-# {
-#   "CANO": "",
-#   "PDNO": "",
-#   "CNDT_PRIC": "",
-#   "ACNT_PRDT_CD": "",
-#   "SLL_TYPE": "",
-#   "ORD_DVSN": "",
-#   "EXCG_ID_DVSN_CD": "",
-#   "ORD_QTY": "",
-#   "ORD_UNPR": ""
-# }
+ws_token: "a3484d9c-7740-4890-b745-dcf01ba2a406"

@@ -3,9 +3,8 @@ from .account_db import AccountDB
 from .asset_history_db import AssetHistoryDB
 from .cash_flow_db import CashFlow
 from .session import Base, engine
-from .stock_code_name_db import StockCodeNameDB
 from .stock_strategy_db import StockStrategyDB
-from .trade_check_db import TradeCheckDB
+from .trade_db import TradeDB
 
 
 def create_all_tables():

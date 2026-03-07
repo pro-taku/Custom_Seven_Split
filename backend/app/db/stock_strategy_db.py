@@ -7,8 +7,8 @@ from app.db.session import Base
 class StockStrategyDB(Base):
     __tablename__ = "stock_strategy_db"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    stock_code = Column(String, unique=True, nullable=False)  # Changed to unique
+    stock_code = Column(String, primary_key=True)
+    stock_name = Column(String)
     split_level = Column(Integer)
     invested_capital = Column(Integer)
     buy_price = Column(Integer)
@@ -17,13 +17,14 @@ class StockStrategyDB(Base):
     sell_per = Column(Float)
 
     def __repr__(self):
-        return f"<StockStrategyDB(id={self.id}, stock_code='{self.stock_code}')>"
+        return f"<StockStrategyDB(stock_code='{self.stock_code}', stock_name='{self.stock_name}')>"
 
     @classmethod
     def create(
         cls,
         db: Session,
         stock_code: str,
+        stock_name: str,
         split_level: int,
         invested_capital: int,
         buy_price: int,
@@ -33,6 +34,7 @@ class StockStrategyDB(Base):
     ):
         new_strategy = cls(
             stock_code=stock_code,
+            stock_name=stock_name,
             split_level=split_level,
             invested_capital=invested_capital,
             buy_price=buy_price,
@@ -46,11 +48,7 @@ class StockStrategyDB(Base):
         return new_strategy
 
     @classmethod
-    def get(cls, db: Session, strategy_id: int):
-        return db.query(cls).filter(cls.id == strategy_id).first()
-
-    @classmethod
-    def get_by_stock_code(cls, db: Session, stock_code: str):
+    def get(cls, db: Session, stock_code: str):
         return db.query(cls).filter(cls.stock_code == stock_code).first()
 
     @classmethod
