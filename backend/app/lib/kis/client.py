@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi.logger import logger
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import (
@@ -11,6 +10,7 @@ from app.core.config import (
     KIS_VIRTUAL_WS_DOMAIN,
     TR,
     TradeType,
+    logger,
     read_data,
     save_data,
 )
@@ -105,8 +105,8 @@ class _KISProperty:
 
 
 class KISClient(_KISProperty):
-    def __init__(self, env: str = "V", account_num: str | None = None):
-        super().__init__(env, account_num)
+    def __init__(self, env: str):
+        super().__init__(env)
 
     async def _send_request(
         self,
@@ -147,7 +147,24 @@ class KISClient(_KISProperty):
             logger.error(f"Error sending request to {api_path}: {e}")
             raise
 
+    # 접근 토큰 발급
     async def load_auth_token(self) -> OAuth2TokenPResponse:
+        """
+        [ 접근 토큰 발급 ]
+
+        1.Request
+        # Body
+        - grant_type : (고정값) "client_credentials"
+        - appkey : 발급받은 앱키
+        - appsecret : 발급받은 앱시크릿
+
+        2. Response
+        # Body
+        - access_token : 발급된 접근 토큰
+        - token_type : 토큰 타입 (="Bearer")
+        - expires_in : 토큰 유효 기간 (초 단위, 7766000)
+        - access_token_token_expired : 토큰 만료 시간 (ex."2022-08-30 08:10:10")
+        """
         logger.info(
             f"Current auth_token: {'[REDACTED]' if self.auth_token else 'None'}. Expired time: {self.expired_time}. Current time: {datetime.now()}",
         )
@@ -206,7 +223,22 @@ class KISClient(_KISProperty):
             logger.error(f"Error loading auth token: {e}")
             raise
 
+    # 접근 토큰 폐기
     async def dispose_auth_token(self) -> OAuth2RevokePResponse:
+        """
+        [ 접근 토큰 폐기 ]
+
+        1.Request
+        # Body
+        - appkey : 발급받은 앱키
+        - appsecret : 발급받은 앱시크릿
+        - token : 폐기할 접근 토큰
+
+        2. Response
+        # Body
+        - code : 응답코드 (HTTP 코드)
+        - message : 응답 메시지
+        """
         if not self.auth_token:
             logger.info("No access token to dispose.")
             return OAuth2RevokePResponse(
@@ -224,8 +256,6 @@ class KISClient(_KISProperty):
 
         headers = {
             "Content-Type": "application/json; charset=utf-8",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret,
         }
 
         try:
@@ -251,6 +281,7 @@ class KISClient(_KISProperty):
             logger.error(f"Error disposing auth token: {e}")
             raise
 
+    # 국내 주식 주문 (현금)
     async def order_cash(
         self,
         trade_type: TradeType,
@@ -303,13 +334,14 @@ class KISClient(_KISProperty):
             response_model=OrderCashResponse,
         )
 
+    # 국내 주식 주문 정정/취소
     async def order_rvsecncl(
         self,
-        orgn_odno: str,
         rvse_cncl_dvsn_cd: str,
+        krx_fwdg_ord_orgno: str,
+        orgn_odno: str = "0",
         ord_qty: int | None = None,
         ord_unpr: int | None = None,
-        krx_fwdg_ord_orgno: str = "000000",  # TODO: 수정 필요
         ord_dvsn: str = "00",
         qty_all_ord_yn: str = "N",
     ) -> OrderRvsecnclResponse:
@@ -355,6 +387,7 @@ class KISClient(_KISProperty):
             response_model=OrderRvsecnclResponse,
         )
 
+    # 국내 주식 주문 정정/취소 가능 여부
     async def inquire_psbl_rvsecncl(
         self,
         inqr_dvsn_1: str,
@@ -399,6 +432,7 @@ class KISClient(_KISProperty):
             response_model=InquirePsblRvsecnclResponse,
         )
 
+    # 국내 주식 매수 가능 여부
     async def inquire_psbl_order(
         self,
         pdno: str,
@@ -435,6 +469,7 @@ class KISClient(_KISProperty):
             response_model=InquirePsblOrderResponse,
         )
 
+    # 국내 주식현자가 시세1
     async def inquire_price(
         self,
         fid_input_iscd: str,
@@ -461,6 +496,7 @@ class KISClient(_KISProperty):
             response_model=InquirePriceResponse,
         )
 
+    # 국내 주식 정보 검색
     async def search_stock_info(
         self,
         fid_input_iscd: str,
@@ -492,6 +528,7 @@ class KISClient(_KISProperty):
             response_model=SearchStockInfoResponse,
         )
 
+    # 국내 휴장일 여부 조회
     async def chk_holiday(self, date: str) -> bool:
         """
         국내 휴장일 여부 조회
