@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+sqlalchemy
+pyyaml
+requests
+websockets
