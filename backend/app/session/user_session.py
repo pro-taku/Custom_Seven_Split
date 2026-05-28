@@ -13,14 +13,17 @@ class UserSession:
         self.db.refresh(db_user)
         return db_user
 
-    def get_by_appkey(self, appkey: str) -> Optional[User]:
-        return self.db.query(User).filter(User.appkey == appkey).first()
+    def get_by_pk(self, appkey: str, appsecret: str) -> Optional[User]:
+        return self.db.query(User).filter_by(appkey=appkey, appsecret=appsecret).first()
+
+    def get_by_account_number(self, account_number: str) -> Optional[User]:
+        return self.db.query(User).filter_by(account_number=account_number).first()
 
     def get_all(self) -> List[User]:
         return self.db.query(User).all()
 
-    def update(self, appkey: str, update_data: dict) -> Optional[User]:
-        db_user = self.get_by_appkey(appkey)
+    def update(self, appkey: str, appsecret: str, update_data: dict) -> Optional[User]:
+        db_user = self.get_by_pk(appkey, appsecret)
         if db_user:
             for key, value in update_data.items():
                 setattr(db_user, key, value)
@@ -28,8 +31,8 @@ class UserSession:
             self.db.refresh(db_user)
         return db_user
 
-    def delete(self, appkey: str) -> bool:
-        db_user = self.get_by_appkey(appkey)
+    def delete(self, appkey: str, appsecret: str) -> bool:
+        db_user = self.get_by_pk(appkey, appsecret)
         if db_user:
             self.db.delete(db_user)
             self.db.commit()

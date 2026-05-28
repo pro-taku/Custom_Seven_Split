@@ -5,8 +5,8 @@ class User(Base):
     __tablename__ = "users"
 
     appkey = Column(String(100), primary_key=True)
-    appsecret = Column(String(100))
+    appsecret = Column(String(100), primary_key=True)
     token = Column(String(100))
     websocket = Column(String(100))
-    expiration = Column(DateTime)
+    expiration = Column(String(100))
     account_number = Column(String(20))

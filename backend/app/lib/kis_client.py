@@ -63,7 +63,7 @@ class KISClient:
         res = requests.post(url, headers=headers, data=json.dumps(data))
         return res.json().get("HASH")
 
-    def get_access_token(self) -> str:
+    def get_access_token(self) -> Dict[str, Any]:
         """접근토큰발급(P)"""
         url = f"{self.base_url}/oauth2/tokenP"
         data = {
@@ -74,7 +74,7 @@ class KISClient:
         res = requests.post(url, data=json.dumps(data))
         res_data = res.json()
         self.access_token = res_data.get("access_token")
-        return self.access_token
+        return res_data
 
     def get_approval_key(self) -> str:
         """실시간(웹소켓) 접속키 발급"""
@@ -121,6 +121,10 @@ class KISClient:
         headers = self._get_headers(tr_id, self.get_hashkey(data))
         res = requests.post(url, headers=headers, data=json.dumps(data))
         return res.json()
+
+    def cancel_order(self, orgn_odno: str, qty: int = 0, price: int = 0) -> Dict[str, Any]:
+        """주식주문 취소"""
+        return self.order_rvsecncl(orgn_odno, "02", qty, price)
 
     def inquire_psbl_rvsecncl(self, inqr_dvsn: str = "0") -> Dict[str, Any]:
         """주식정정취소가능주문조회 - inqr_dvsn: 0(전체), 1(매도), 2(매수)"""
