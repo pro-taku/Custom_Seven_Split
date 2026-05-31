@@ -8,6 +8,7 @@ from app.table.balance_table import Balance
 from app.table.history_table import History
 from app.table.stock_table import Stock
 from app.table.trade_table import Trade
+from app.table.profit_table import Profit
 from app.table.strategy_count_view import StrategyCountView
 
 # DB 테이블 및 뷰 생성

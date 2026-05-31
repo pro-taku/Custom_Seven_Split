@@ -1,8 +1,9 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
+from typing import Optional, Dict, Any
+
 from app.session.user_session import UserSession
 from app.lib.kis_client import KISClient
-from datetime import datetime
-from typing import Optional, Dict, Any
 
 class UserService():
     def __init__(self, db: Session):
@@ -58,21 +59,17 @@ class UserService():
         그리고, user_update() 메서드를 호출하여 DB에 토큰과 만료시간을 업데이트한다.
         """
         user = self.user_session.get_by_pk(appkey, appsecret)
-        if not user:
-            return None
+
+        if not user or not user.token or not user.websocket or not user.expiration:
+            return self.create_user(appkey, appsecret, account_number=None)
         
-        if not self.validate_token(appkey, appsecret) or not user.token:
-            client = KISClient(appkey, appsecret, user.account_number)
-            token_data = client.get_access_token()
-            ws_token = client.get_approval_key()
-            
-            update_data = {
-                "token": token_data.get("access_token"),
-                "websocket": ws_token,
-                "expiration": token_data.get("access_token_token_expired")
-            }
-            user = self.update_user(appkey, appsecret, update_data)
-            
+        try:
+            exp_time = datetime.strptime(user.expiration, "%Y-%m-%d %H:%M:%S")
+            if exp_time <= datetime.now():
+                return self.update_user(appkey, appsecret, account_number=user.account_number)
+        except ValueError:
+            return self.create_user(appkey, appsecret, account_number=user.account_number)
+
         return user
 
     def logout(self, appkey: str, appsecret: str):
@@ -85,6 +82,22 @@ class UserService():
             "websocket": None
         }
         return self.update_user(appkey, appsecret, update_data)
+
+    def get_token(self, appkey: str, appsecret: str) -> Optional[Dict[str, Any]]:
+        """DB에서 유저 정보를 조회하여 KIS API로 접근토큰과 웹소켓 토큰을 발급받는다."""
+        user = self.user_session.get_by_pk(appkey, appsecret)
+        if not user:
+            return None
+        
+        client = KISClient(appkey, appsecret, user.account_number)
+        token_data = client.get_access_token()
+        ws_token = client.get_approval_key()
+        
+        return {
+            "token": token_data.get("access_token"),
+            "websocket": ws_token,
+            "expiration": token_data.get("access_token_token_expired")
+        }
 
     def validate_token(self, appkey: str, appsecret: str) -> bool:
         """

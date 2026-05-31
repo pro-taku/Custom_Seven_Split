@@ -13,12 +13,6 @@ class StockSession:
         self.db.refresh(db_stock)
         return db_stock
 
-    def get_by_code(self, stock_code: str) -> Optional[Stock]:
-        return self.db.query(Stock).filter(Stock.stock_code == stock_code).first()
-
-    def get_all(self) -> List[Stock]:
-        return self.db.query(Stock).all()
-
     def delete(self, stock_code: str) -> bool:
         db_stock = self.get_by_code(stock_code)
         if db_stock:
@@ -26,3 +20,9 @@ class StockSession:
             self.db.commit()
             return True
         return False
+
+    def get_by_code(self, stock_code: str) -> Optional[Stock]:
+        return self.db.query(Stock).filter(Stock.stock_code == stock_code).first()
+
+    def get_all(self) -> List[Stock]:
+        return self.db.query(Stock).all()

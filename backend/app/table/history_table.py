@@ -4,9 +4,8 @@ from app.core.connect import Base
 class History(Base):
     __tablename__ = "histories"
 
-    date = Column(DateTime, primary_key=True)
-    account_number = Column(String(20), primary_key=True)
-    split_level = Column(Integer, primary_key=True)
-    market_value = Column(Integer)
-    deposit = Column(Integer)
-    valuation_gain_loss = Column(Integer)
+    date = Column(DateTime, primary_key=True)   # 기록 날짜 (YYYY-MM-DD)
+    account_number = Column(String(20), primary_key=True)   # 계좌 번호
+    market_value = Column(Integer)              # 평가 금액
+    deposit = Column(Integer)                   # 예수금
+    valuation_gain_loss = Column(Integer)       # 평가 손익 (평가 금액 - 투자 금액)

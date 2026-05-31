@@ -5,7 +5,7 @@ class StrategyCountView(Base):
     __tablename__ = "strategy_count_view"
 
     account_number = Column(String(20), primary_key=True)
-    strategy_count = Column(Integer)
+    count = Column(Integer)
 
 # View 생성 SQL
 # strategies 테이블에서 account_number별로 그룹화하여 개수를 셉니다.

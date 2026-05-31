@@ -6,45 +6,50 @@ from enum import Enum
 
 class TRID(Enum):
     # 주식 주문
-    BUY_CASH = ("TTTC0802U", "VTTC0802U")
-    SELL_CASH = ("TTTC0801U", "VTTC0801U")
-    REVISE_CANCEL = ("TTTC0803U", "VTTC0803U")
+    BUY_CASH = ("TTTC0802U")
+    SELL_CASH = ("TTTC0801U")
+    REVISE_CANCEL = ("TTTC0803U")
     
     # 조회
-    PSBL_REVISE_CANCEL = ("TTTC8036R", "VTTC8036R")
-    BALANCE = ("TTTC8434R", "VTTC8434R")
-    PSBL_ORDER = ("TTTC8908R", "VTTC8908R")
-    HOLIDAY = ("CTCA0903R", "CTCA0903R")
+    PSBL_REVISE_CANCEL = ("TTTC8036R")
+    BALANCE = ("TTTC8434R")
+    PSBL_ORDER = ("TTTC8908R")
+    PRICE = ("FHKST01010100")
+    HOLIDAY = ("CTCA0903R")
     
     # 실시간 (웹소켓)
-    WS_PRICE = ("H0STCNT0", "H0STCNT0")
+    WS_PRICE = ("H0STCNT0")
 
-    def get_id(self, is_virtual: bool) -> str:
-        return self.value[1] if is_virtual else self.value[0]
+    def get_id(self) -> str:
+        return self.value
 
 class KISClient:
-    def __init__(self, appkey: str, secret: str, cano: str, acnt_prdt_cd: str = "01", is_virtual: bool = True):
+    def __init__(
+            self,
+            appkey: str, 
+            appsecret: str,
+            cano: str,
+            acnt_prdt_cd: str = "01",
+            access_token: Optional[str] = None,
+            token_expiry: Optional[str] = None,
+            approval_key: Optional[str] = None
+        ):
         self.appkey = appkey
-        self.secret = secret
+        self.appsecret = appsecret
         self.cano = cano
         self.acnt_prdt_cd = acnt_prdt_cd
-        self.is_virtual = is_virtual
-        
-        if self.is_virtual:
-            self.base_url = "https://openapivts.koreainvestment.com:29443"
-        else:
-            self.base_url = "https://openapi.koreainvestment.com:9443"
+        self.base_url = "https://openapivts.koreainvestment.com:29443"
             
-        self.access_token = None
-        self.token_expiry = 0
-        self.approval_key = None
+        self.access_token = access_token
+        self.token_expiry = token_expiry
+        self.approval_key = approval_key
 
     def _get_headers(self, tr_id: str, hashkey: Optional[str] = None) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "authorization": f"Bearer {self.access_token}",
             "appkey": self.appkey,
-            "appsecret": self.secret,
+            "appsecret": self.appsecret,
             "tr_id": tr_id,
             "custtype": "P",  # Personal
         }
@@ -58,7 +63,7 @@ class KISClient:
         headers = {
             "Content-Type": "application/json",
             "appkey": self.appkey,
-            "appsecret": self.secret,
+            "appsecret": self.appsecret,
         }
         res = requests.post(url, headers=headers, data=json.dumps(data))
         return res.json().get("HASH")
@@ -69,7 +74,7 @@ class KISClient:
         data = {
             "grant_type": "client_credentials",
             "appkey": self.appkey,
-            "appsecret": self.secret
+            "appsecret": self.appsecret
         }
         res = requests.post(url, data=json.dumps(data))
         res_data = res.json()
@@ -82,7 +87,7 @@ class KISClient:
         data = {
             "grant_type": "client_credentials",
             "appkey": self.appkey,
-            "secretkey": self.secret
+            "secretkey": self.appsecret
         }
         res = requests.post(url, data=json.dumps(data))
         self.approval_key = res.json().get("approval_key")
@@ -90,8 +95,8 @@ class KISClient:
 
     def order_cash(self, symbol: str, qty: int, price: int, side: str = "BUY") -> Dict[str, Any]:
         """주식주문(현금) - side: BUY/SELL"""
-        tr_id = TRID.BUY_CASH.get_id(self.is_virtual) if side == "BUY" else TRID.SELL_CASH.get_id(self.is_virtual)
-            
+        tr_id = TRID.BUY_CASH.get_id() if side == "BUY" else TRID.SELL_CASH.get_id()
+
         url = f"{self.base_url}/uapi/domestic-stock/v1/trading/order-cash"
         data = {
             "CANO": self.cano,
@@ -107,7 +112,7 @@ class KISClient:
 
     def order_rvsecncl(self, orgn_odno: str, rvse_cncl_dv: str, qty: int, price: int, ord_dvsn: str = "00") -> Dict[str, Any]:
         """주식주문(정정취소) - rvse_cncl_dv: 01(정정), 02(취소)"""
-        tr_id = TRID.REVISE_CANCEL.get_id(self.is_virtual)
+        tr_id = TRID.REVISE_CANCEL.get_id()
         url = f"{self.base_url}/uapi/domestic-stock/v1/trading/order-rvsecncl"
         data = {
             "CANO": self.cano,
@@ -128,7 +133,7 @@ class KISClient:
 
     def inquire_psbl_rvsecncl(self, inqr_dvsn: str = "0") -> Dict[str, Any]:
         """주식정정취소가능주문조회 - inqr_dvsn: 0(전체), 1(매도), 2(매수)"""
-        tr_id = TRID.PSBL_REVISE_CANCEL.get_id(self.is_virtual)
+        tr_id = TRID.PSBL_REVISE_CANCEL.get_id()
         url = f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-psbl-rvsecncl"
         params = {
             "CANO": self.cano,
@@ -143,14 +148,14 @@ class KISClient:
 
     def inquire_balance(self) -> Dict[str, Any]:
         """주식잔고조회"""
-        tr_id = TRID.BALANCE.get_id(self.is_virtual)
+        tr_id = TRID.BALANCE.get_id()
         url = f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-balance"
         params = {
             "CANO": self.cano,
             "ACNT_PRDT_CD": self.acnt_prdt_cd,
             "AFHR_FLG": "N",
             "OVR_FLG": "N",
-            "PRCS_DVSN": "01",
+            "PRCS_DVSN": "00",
             "UNPR_DVSN": "01",
             "CTX_AREA_FK100": "",
             "CTX_AREA_NK100": ""
@@ -161,7 +166,7 @@ class KISClient:
 
     def inquire_psbl_order(self, symbol: str, price: int, ord_dvsn: str = "00") -> Dict[str, Any]:
         """매수가능조회"""
-        tr_id = TRID.PSBL_ORDER.get_id(self.is_virtual)
+        tr_id = TRID.PSBL_ORDER.get_id()
         url = f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-psbl-order"
         params = {
             "CANO": self.cano,
@@ -175,9 +180,20 @@ class KISClient:
         res = requests.get(url, headers=headers, params=params)
         return res.json()
 
+    def inquire_price(self, symbol: str) -> Dict[str, Any]:
+        """주식현재가조회"""
+        url = f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-price"
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "J",  # KRX
+            "FID_INPUT_ISCD": symbol,
+        }
+        headers = self._get_headers(TRID.PRICE.get_id())
+        res = requests.get(url, headers=headers, params=params)
+        return res.json()
+
     def chk_holiday(self, base_dt: str) -> Dict[str, Any]:
         """국내휴장일조회 - base_dt: YYYYMMDD"""
-        tr_id = TRID.HOLIDAY.get_id(self.is_virtual)
+        tr_id = TRID.HOLIDAY.get_id()
         url = f"{self.base_url}/uapi/domestic-stock/v1/quotations/chk-holiday"
         params = {
             "BASS_DT": base_dt,
@@ -202,7 +218,7 @@ class KISClient:
             },
             "body": {
                 "input": {
-                    "tr_id": TRID.WS_PRICE.get_id(self.is_virtual),
+                    "tr_id": TRID.WS_PRICE.get_id(),
                     "tr_key": symbol
                 }
             }
