@@ -10,6 +10,7 @@ from app.session.account_session import AccountSession
 from app.session.stock_session import StockSession
 from app.session.trade_session import TradeSession
 from app.session.user_session import UserSession
+from backend.app.session.balance_session import BalanceSession
 
 
 class StockService:
@@ -18,6 +19,8 @@ class StockService:
         self.user_session = UserSession(db)
         self.account_session = AccountSession(db)
         self.stock_session = StockSession(db)
+        self.balance_session = BalanceSession(db)
+
         self.client = KISClient | None
 
     def get_kis_client(self, account_number: str) -> None:
@@ -41,11 +44,96 @@ class StockService:
         response = self.client.chk_holiday(now.strftime("%Y%m%d"))
         return response['output'][0]['opnd_yn'] == 'Y'  # 'Y'면 영업일, 'N'이면 휴장일
 
-    def order_stock(self):
-        pass
+    def check_order_possibility(
+            self,
+            stock_code: str,
+            buy_sell: str,
+            order_price: int,
+            order_quantity: int
+        ) -> bool:
+        if not self.client:
+            raise Exception("KISClient is not initialized. Call get_kis_client() first.")
+        
+        if buy_sell == "BUY":
+            response = self.client.inquire_psbl_order(
+                symbol=stock_code,
+                price=order_price,
+            )
+            if response['output'][0]['nrcvb_buy_qty'] < order_quantity:
+                return False
+            return True
+        elif buy_sell == "SELL":
+            balance = self.balance_session.get_by_account_and_stock(self.account_session.get_by_account_number(self.client.cano), stock_code)
+            if balance.quantity < order_quantity:
+                return False
+            return True
+        else:
+            raise ValueError("Invalid buy_sell value. Must be 'BUY' or 'SELL'.")
 
-    def cancel_order(self):
-        pass
+    def order_stock(
+            self,
+            account_number: str,
+            stock_code: str,
+            buy_sell: str,
+            order_price: int,
+            order_quantity: int
+        ):
+        if not self.client:
+            raise Exception("KISClient is not initialized. Call get_kis_client() first.")
+        
+        if not self.is_market_open():
+            raise Exception("Market is closed. Orders cannot be placed outside of market hours.")
+        
+        if not self.check_order_possibility(stock_code, buy_sell, order_price, order_quantity):
+            raise Exception("Order is not possible due to market conditions or insufficient balance.")
+        
+        response = self.client.order_cash(
+            symbol=stock_code,
+            qty=order_quantity,
+            price=order_price,
+            side=buy_sell
+        )
+
+        if response.get("rt_cd") != "0":
+            raise Exception(f"Order failed: {response.get('msg1')} - {response.get('msg2')}")
+        
+        self.trade_session.create({
+            "account_number": account_number,
+            "stock_code": stock_code,
+            "buy_sell": buy_sell,
+            "order_price": order_price,
+            "order_quantity": order_quantity,
+            "status": "W"
+        })
+
+    def cancel_order(
+            self,
+            orgn_odno: str,
+            stock_code: str,
+            buy_sell: str,
+            order_price: int,
+            order_quantity: int
+        ):
+        if not self.client:
+            raise Exception("KISClient is not initialized. Call get_kis_client() first.")
+        
+        if self.is_market_open():
+            raise Exception("Market is open. Orders cannot be cancelled during market hours.")
+        
+        if not self.check_order_possibility(stock_code, buy_sell, order_price, order_quantity):
+            raise Exception("Order cannot be cancelled due to market conditions or insufficient balance.")
+        
+        response = self.client.order_rvsecncl(
+            orgn_odno=orgn_odno,
+            rvse_cncl_dv="02",
+            qty=order_quantity,
+            price=order_price
+        )
+
+        if response.get("rt_cd") != "0":
+            raise Exception(f"Order cancellation failed: {response.get('msg1')} - {response.get('msg2')}")
+
+        self.trade_session.update_status(orgn_odno, "C")
         
     def get_stock_info(self, stock_code: str) -> Dict[str, Any]:
         """

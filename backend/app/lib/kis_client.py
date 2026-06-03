@@ -18,7 +18,7 @@ class TRID(Enum):
     HOLIDAY = ("CTCA0903R")
     
     # 실시간 (웹소켓)
-    WS_PRICE = ("H0STCNT0")
+    WS_EXECUTION = ("H0STCNI0") # 실시간 체결 통보
 
     def get_id(self) -> str:
         return self.value
@@ -204,8 +204,8 @@ class KISClient:
         res = requests.get(url, headers=headers, params=params)
         return res.json()
 
-    def get_ws_subscribe_payload(self, symbol: str, tr_type: str = "1") -> str:
-        """국내주식 실시간체결가 (KRX) 구독용 페이로드 생성 - tr_type: 1(등록), 2(해제)"""
+    def get_ws_subscribe_payload(self, tr_id: str, tr_key: str, tr_type: str = "1") -> str:
+        """국내주식 실시간 (체결가/체결통보) 구독용 페이로드 생성 - tr_type: 1(등록), 2(해제)"""
         if not self.approval_key:
             self.get_approval_key()
             
@@ -218,8 +218,8 @@ class KISClient:
             },
             "body": {
                 "input": {
-                    "tr_id": TRID.WS_PRICE.get_id(),
-                    "tr_key": symbol
+                    "tr_id": tr_id,
+                    "tr_key": tr_key
                 }
             }
         }

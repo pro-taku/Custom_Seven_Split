@@ -8,6 +8,4 @@ class Profit(Base):
     account_number = Column(String(20))     # 계좌 번호
     split_level = Column(Integer)           # 분할 레벨 (1~7)
     stock_code = Column(String(20))         # 종목 코드
-    buy_odno = Column(String(20), primary_key=True)  # 매수 주문번호를 기본키로 사용
-    sell_odno = Column(String(20), primary_key=True)  # 매도 주문번호를 기본키로 사용
     profit = Column(Integer)                # 실현 손익

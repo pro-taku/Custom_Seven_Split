@@ -9,7 +9,7 @@ class UserService():
     def __init__(self, db: Session):
         self.user_session = UserSession(db)
 
-    def create_user(self, appkey: str, appsecret: str, account_number: str):
+    def create_user(self, appkey: str, appsecret: str, account_number: str, hts_id: Optional[str] = None):
         """
         UserSession.create() 메서드를 호출하여 새로운 유저를 데이터베이스에 추가한다.
 
@@ -24,6 +24,7 @@ class UserService():
         user_data = {
             "appkey": appkey,
             "appsecret": appsecret,
+            "hts_id": hts_id,
             "token": token_data.get("access_token"),
             "websocket": ws_token,
             "expiration": token_data.get("access_token_token_expired"),

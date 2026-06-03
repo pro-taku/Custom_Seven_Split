@@ -10,7 +10,7 @@ class Trade(Base):
     account_number = Column(String(20))
     split_level = Column(Integer)
     stock_code = Column(String(20))
-    buy_sell = Column(CHAR(1))  # 'B' or 'S'
+    buy_sell = Column(String(5))  # 'BUY' 또는 'SELL'
     order_price = Column(Integer)
     order_quantity = Column(Integer)
     status = Column(CHAR(1))  # 'W'atting, 'E'xecuted, 'C'ancelled

@@ -6,6 +6,7 @@ class User(Base):
 
     appkey = Column(String(100), primary_key=True)
     appsecret = Column(String(100), primary_key=True)
+    hts_id = Column(String(20))
     token = Column(String(100))
     websocket = Column(String(100))
     expiration = Column(String(100))

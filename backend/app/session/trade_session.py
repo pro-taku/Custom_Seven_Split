@@ -21,9 +21,12 @@ class TradeSession:
             self.db.commit()
             self.db.refresh(db_trade)
         return db_trade
+    
+    def get_by_odno(self, odno: str) -> Optional[Trade]:
+        return self.db.query(Trade).filter(Trade.odno == odno).first()
 
     def get_by_filter(
-        self, 
+        self,
         account_number: str, 
         stock_code: Optional[str] = None, 
         status: Optional[str] = None,
