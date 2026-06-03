@@ -10,7 +10,7 @@ from app.session.account_session import AccountSession
 from app.session.stock_session import StockSession
 from app.session.trade_session import TradeSession
 from app.session.user_session import UserSession
-from backend.app.session.balance_session import BalanceSession
+from app.session.balance_session import BalanceSession
 
 
 class StockService:

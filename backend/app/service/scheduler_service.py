@@ -9,8 +9,8 @@ from app.service.stock_service import StockService
 from app.session.user_session import UserSession
 from app.session.account_session import AccountSession
 from app.session.trade_session import TradeSession
-from backend.app.session.balance_session import BalanceSession
-from backend.app.session.history_session import HistorySession
+from app.session.balance_session import BalanceSession
+from app.session.history_session import HistorySession
 
 class SchedulerService:
     def __init__(self, db: Session):

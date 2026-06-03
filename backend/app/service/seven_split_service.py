@@ -3,11 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.session.strategy_count_session import StrategyCountSession
 from app.session.strategy_session import StrategySession
-from backend.app.service.stock_service import StockService
-from backend.app.session.account_session import AccountSession
-from backend.app.session.balance_session import BalanceSession
-from backend.app.session.profit_session import ProfitSession
-from backend.app.session.trade_session import TradeSession
+from app.service.stock_service import StockService
+from app.session.account_session import AccountSession
+from app.session.balance_session import BalanceSession
+from app.session.profit_session import ProfitSession
+from app.session.trade_session import TradeSession
 
 class SevenSplitService:
     def __init__(self, db: Session):

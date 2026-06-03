@@ -2,6 +2,7 @@ import json
 import asyncio
 import websockets
 from typing import Dict, Optional, Callable, List, Any
+from websockets.protocol import State
 from app.lib.kis_client import KISClient, TRID
 
 class KISWebSocketManager:
@@ -16,10 +17,11 @@ class KISWebSocketManager:
             cls._instance.tasks = {}        # {app_key: listen_task}
         return cls._instance
 
-    async def get_connection(self, client: KISClient) -> websockets.WebSocketClientProtocol:
+    async def get_connection(self, client: KISClient) -> Any:
         """AppKey에 해당하는 웹소켓 연결을 가져오거나 새로 생성"""
         app_key = client.appkey
-        if app_key not in self.connections or self.connections[app_key].closed:
+        # websockets v14+ 에서는 closed 속성 대신 state 확인
+        if app_key not in self.connections or self.connections[app_key].state == State.CLOSED:
             uri = "ws://ops.koreainvestment.com:31000"
             if client.base_url.find("vts") != -1:
                 uri = "ws://ops.koreainvestment.com:31000" # 모의투자도 동일한 경우 많음 (체크 필요)
@@ -58,7 +60,7 @@ class KISWebSocketManager:
     async def unsubscribe(self, client: KISClient, tr_id: str, tr_key: str):
         """특정 TR ID와 Key에 대해 구독 해제 요청"""
         app_key = client.appkey
-        if app_key in self.connections and not self.connections[app_key].closed:
+        if app_key in self.connections and self.connections[app_key].state == State.OPEN:
             ws = self.connections[app_key]
             payload = client.get_ws_subscribe_payload(tr_id, tr_key, tr_type="2")
             await ws.send(payload)
